@@ -90,7 +90,7 @@ class Stage4QualityChecks:
         for i, topic in enumerate(response.topics):
             if topic.confidence < self.min_confidence_threshold:
                 warnings.append(
-                    f"Low confidence for topic '{topic.label_id}' at index {i}: "
+                    f"Low confidence for topic '{topic.labelid}' at index {i}: "
                     f"{topic.confidence:.3f} (threshold: {self.min_confidence_threshold})"
                 )
         
@@ -109,7 +109,7 @@ class Stage4QualityChecks:
         warnings: list[str] = []
         
         # Check duplicate topics (same labelid)
-        topic_labels = [topic.label_id for topic in response.topics]
+        topic_labels = [topic.labelid for topic in response.topics]
         seen_labels = set()
         for i, label in enumerate(topic_labels):
             if label in seen_labels:
@@ -118,12 +118,12 @@ class Stage4QualityChecks:
         
         # Check duplicate keywords within each topic
         for topic_idx, topic in enumerate(response.topics):
-            candidate_ids = [kw.candidate_id for kw in topic.keywords_in_text]
+            candidateids = [kw.candidate_id for kw in topic.keywordsintext]
             seen_ids = set()
-            for kw_idx, cid in enumerate(candidate_ids):
+            for kw_idx, cid in enumerate(candidateids):
                 if cid in seen_ids:
                     warnings.append(
-                        f"Duplicate keyword candidateid '{cid}' in topic '{topic.label_id}' "
+                        f"Duplicate keyword candidateid '{cid}' in topic '{topic.labelid}' "
                         f"(topic index {topic_idx}, keyword index {kw_idx})"
                     )
                 seen_ids.add(cid)
@@ -137,7 +137,7 @@ class Stage4QualityChecks:
                 normalized = quote.lower().strip()
                 if normalized in seen_quotes:
                     warnings.append(
-                        f"Duplicate evidence quote in topic '{topic.label_id}' "
+                        f"Duplicate evidence quote in topic '{topic.labelid}' "
                         f"(topic index {topic_idx}, evidence index {ev_idx})"
                     )
                 seen_quotes.add(normalized)
@@ -158,16 +158,16 @@ class Stage4QualityChecks:
         
         # Check topics without keywords
         for i, topic in enumerate(response.topics):
-            if not topic.keywords_in_text:
+            if not topic.keywordsintext:
                 warnings.append(
-                    f"Topic '{topic.label_id}' at index {i} has no keywords"
+                    f"Topic '{topic.labelid}' at index {i} has no keywords"
                 )
         
         # Check topics without evidence
         for i, topic in enumerate(response.topics):
             if not topic.evidence:
                 warnings.append(
-                    f"Topic '{topic.label_id}' at index {i} has no evidence"
+                    f"Topic '{topic.labelid}' at index {i} has no evidence"
                 )
         
         # Check priority signals completeness
@@ -180,8 +180,9 @@ class Stage4QualityChecks:
                 if len(evidence.quote) > 180:  # Warn if > 180 chars (max is 200)
                     warnings.append(
                         f"Evidence quote is very long ({len(evidence.quote)} chars) "
-                        f"in topic '{topic.label_id}' (topic index {topic_idx}, "
+                        f"in topic '{topic.labelid}' (topic index {topic_idx}, "
                         f"evidence index {ev_idx})"
                     )
         
         return warnings
+

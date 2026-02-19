@@ -30,9 +30,9 @@ class TestStage4QualityChecks:
             "priority": PriorityResult(value="medium", confidence=0.7, signals=["test"]),
             "topics": [
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(candidate_id="hash_001", lemma="contratto", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test evidence")]
@@ -75,9 +75,9 @@ class TestStage4QualityChecks:
         response = self.create_minimal_valid_response(
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.05,  # Very low!
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(candidate_id="h1", lemma="test", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test")]
@@ -95,17 +95,17 @@ class TestStage4QualityChecks:
         response = self.create_minimal_valid_response(
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(candidate_id="h1", lemma="test1", count=1)
                     ],
                     evidence=[EvidenceItem(quote="evidence1")]
                 ),
                 TopicResult(
-                    label_id="CONTRATTO",  # Duplicate!
+                    labelid="CONTRATTO",  # Duplicate!
                     confidence=0.8,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(candidate_id="h2", lemma="test2", count=1)
                     ],
                     evidence=[EvidenceItem(quote="evidence2")]
@@ -122,9 +122,9 @@ class TestStage4QualityChecks:
         response = self.create_minimal_valid_response(
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(candidate_id="hash_001", lemma="contratto", count=1),
                         KeywordInText(candidate_id="hash_002", lemma="garanzia", count=1),
                         KeywordInText(candidate_id="hash_001", lemma="contratto", count=2),  # Duplicate!
@@ -143,9 +143,9 @@ class TestStage4QualityChecks:
         response = self.create_minimal_valid_response(
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(candidate_id="h1", lemma="test", count=1)
                     ],
                     evidence=[
@@ -165,9 +165,9 @@ class TestStage4QualityChecks:
         response = self.create_minimal_valid_response(
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(candidate_id="h1", lemma="test", count=1)
                     ],
                     evidence=[
@@ -187,9 +187,9 @@ class TestStage4QualityChecks:
         response = self.create_minimal_valid_response(
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[],  # No keywords!
+                    keywordsintext=[],  # No keywords!
                     evidence=[EvidenceItem(quote="test")]
                 )
             ]
@@ -204,9 +204,9 @@ class TestStage4QualityChecks:
         response = self.create_minimal_valid_response(
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(candidate_id="h1", lemma="test", count=1)
                     ],
                     evidence=[]  # No evidence!
@@ -233,9 +233,9 @@ class TestStage4QualityChecks:
         response = self.create_minimal_valid_response(
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(candidate_id="h1", lemma="test", count=1)
                     ],
                     evidence=[
@@ -256,9 +256,9 @@ class TestStage4QualityChecks:
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),  # No signals
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.05,  # Low confidence
-                    keywords_in_text=[],  # No keywords
+                    keywordsintext=[],  # No keywords
                     evidence=[]  # No evidence
                 )
             ]
@@ -293,3 +293,4 @@ class TestStage4QualityChecks:
         
         assert len(warnings) >= 1
         assert any("sentiment" in w.lower() and "0.400" in w for w in warnings)
+

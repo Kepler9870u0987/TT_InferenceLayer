@@ -3,11 +3,13 @@ Unit tests for Validation Verifiers.
 """
 
 import pytest
+from datetime import datetime
 
 from inference_layer.models.input_models import (
     EmailDocument,
     CandidateKeyword,
     TriageRequest,
+    InputPipelineVersion,
 )
 from inference_layer.models.output_models import (
     EmailTriageResponse,
@@ -24,6 +26,34 @@ from inference_layer.validation.verifiers import (
 )
 
 
+def create_test_email_doc(body_text: str) -> EmailDocument:
+    """Helper to create a minimal valid EmailDocument for testing."""
+    return EmailDocument(
+        uid="test_uid",
+        mailbox="INBOX",
+        message_id="<test@example.com>",
+        fetched_at=datetime.now(),
+        size=1000,
+        from_addr_redacted="test@example.com",
+        to_addrs_redacted=["support@example.com"],
+        subject_canonical="Test Subject",
+        date_parsed="Thu, 1 Jan 2026 12:00:00 +0000",
+        headers_canonical={},
+        body_text_canonical=body_text,
+        body_original_hash="test_hash",
+        pii_entities=[],
+        removed_sections=[],
+        pipeline_version=InputPipelineVersion(
+            parser_version="1.0",
+            canonicalization_version="1.0",
+            ner_model_version="1.0",
+            pii_redaction_version="1.0"
+        ),
+        processing_timestamp=datetime.now(),
+        processing_duration_ms=100
+    )
+
+
 class TestEvidencePresenceVerifier:
     """Test suite for Evidence Presence Verifier."""
     
@@ -31,32 +61,37 @@ class TestEvidencePresenceVerifier:
         """Setup test fixtures."""
         self.verifier = EvidencePresenceVerifier()
         
-        self.email_doc = EmailDocument(
-            subject="Test",
-            from_address="test@example.com",
-            body_text_canonical="Vorrei informazioni sul contratto e sulla garanzia del prodotto.",
-            pii_entities=[],
-            removed_sections=[]
+        self.email_doc = create_test_email_doc(
+            "Vorrei informazioni sul contratto e sulla garanzia del prodotto."
         )
         
         self.request = TriageRequest(
-            email_document=self.email_doc,
-            candidate_keywords=[],
+            email=self.email_doc,
+            candidate_keywords=[
+                CandidateKeyword(
+                    candidate_id="test_001",
+                    term="contratto",
+                    lemma="contratto",
+                    count=1,
+                    source="body",
+                    score=0.9
+                )
+            ],
             dictionary_version=1
         )
     
     def test_evidence_found_in_text_no_warning(self):
         """Test that evidence quote found in text produces no warning."""
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
-                        KeywordInText(candidate_id="h1", lemma="contratto", count=1)
+                    keywordsintext=[
+                        KeywordInText(candidateid="h1", lemma="contratto", count=1)
                     ],
                     evidence=[
                         EvidenceItem(quote="informazioni sul contratto")  # In text!
@@ -71,15 +106,15 @@ class TestEvidencePresenceVerifier:
     def test_evidence_not_found_warning(self):
         """Test that evidence quote not found in text produces warning."""
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
-                        KeywordInText(candidate_id="h1", lemma="contratto", count=1)
+                    keywordsintext=[
+                        KeywordInText(candidateid="h1", lemma="contratto", count=1)
                     ],
                     evidence=[
                         EvidenceItem(quote="questo non è nel testo originale")
@@ -95,15 +130,15 @@ class TestEvidencePresenceVerifier:
     def test_evidence_case_insensitive_match(self):
         """Test that evidence matching is case-insensitive."""
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
-                        KeywordInText(candidate_id="h1", lemma="contratto", count=1)
+                    keywordsintext=[
+                        KeywordInText(candidateid="h1", lemma="contratto", count=1)
                     ],
                     evidence=[
                         EvidenceItem(quote="INFORMAZIONI SUL CONTRATTO")  # Different case
@@ -120,15 +155,15 @@ class TestEvidencePresenceVerifier:
         # "Vorrei informazioni sul contratto"
         # Indices: "informazioni sul contratto" is at approximately [7:36]
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
-                        KeywordInText(candidate_id="h1", lemma="contratto", count=1)
+                    keywordsintext=[
+                        KeywordInText(candidateid="h1", lemma="contratto", count=1)
                     ],
                     evidence=[
                         EvidenceItem(
@@ -146,15 +181,15 @@ class TestEvidencePresenceVerifier:
     def test_evidence_with_invalid_span_warning(self):
         """Test that evidence with mismatched span produces warning."""
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
-                        KeywordInText(candidate_id="h1", lemma="contratto", count=1)
+                    keywordsintext=[
+                        KeywordInText(candidateid="h1", lemma="contratto", count=1)
                     ],
                     evidence=[
                         EvidenceItem(
@@ -172,30 +207,33 @@ class TestEvidencePresenceVerifier:
     
     def test_empty_body_warning(self):
         """Test that empty email body produces warning."""
-        empty_email_doc = EmailDocument(
-            subject="Test",
-            from_address="test@example.com",
-            body_text_canonical="",
-            pii_entities=[],
-            removed_sections=[]
-        )
+        empty_email_doc = create_test_email_doc("")
         
         request = TriageRequest(
-            email_document=empty_email_doc,
-            candidate_keywords=[],
+            email=empty_email_doc,
+            candidate_keywords=[
+                CandidateKeyword(
+                    candidate_id="test_001",
+                    term="test",
+                    lemma="test",
+                    count=1,
+                    source="body",
+                    score=0.9
+                )
+            ],
             dictionary_version=1
         )
         
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
-                        KeywordInText(candidate_id="h1", lemma="test", count=1)
+                    keywordsintext=[
+                        KeywordInText(candidateid="h1", lemma="test", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test")]
                 )
@@ -214,12 +252,8 @@ class TestKeywordPresenceVerifier:
         """Setup test fixtures."""
         self.verifier = KeywordPresenceVerifier()
         
-        self.email_doc = EmailDocument(
-            subject="Test",
-            from_address="test@example.com",
-            body_text_canonical="Vorrei informazioni sul contratto e sulla garanzia.",
-            pii_entities=[],
-            removed_sections=[]
+        self.email_doc = create_test_email_doc(
+            "Vorrei informazioni sul contratto e sulla garanzia."
         )
         
         self.candidates = [
@@ -243,14 +277,14 @@ class TestKeywordPresenceVerifier:
                 candidate_id="hash_003",
                 term="assente",
                 lemma="assente",
-                count=0,
+                count=1,
                 source="body",
                 score=0.1
             ),
         ]
         
         self.request = TriageRequest(
-            email_document=self.email_doc,
+            email=self.email_doc,
             candidate_keywords=self.candidates,
             dictionary_version=1
         )
@@ -258,15 +292,15 @@ class TestKeywordPresenceVerifier:
     def test_keyword_found_in_text_no_warning(self):
         """Test that keyword found in text produces no warning."""
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
-                        KeywordInText(candidate_id="hash_001", lemma="contratto", count=1)
+                    keywordsintext=[
+                        KeywordInText(candidateid="hash_001", lemma="contratto", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test")]
                 )
@@ -279,15 +313,15 @@ class TestKeywordPresenceVerifier:
     def test_keyword_not_found_warning(self):
         """Test that keyword not found in text produces warning."""
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
-                        KeywordInText(candidate_id="hash_003", lemma="assente", count=1)
+                    keywordsintext=[
+                        KeywordInText(candidateid="hash_003", lemma="assente", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test")]
                 )
@@ -303,15 +337,15 @@ class TestKeywordPresenceVerifier:
         """Test that keyword matching is case-insensitive."""
         # "contratto" appears in lowercase in text
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
-                        KeywordInText(candidate_id="hash_001", lemma="CONTRATTO", count=1)
+                    keywordsintext=[
+                        KeywordInText(candidateid="hash_001", lemma="CONTRATTO", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test")]
                 )
@@ -324,16 +358,16 @@ class TestKeywordPresenceVerifier:
     def test_keyword_with_valid_spans_no_warning(self):
         """Test that keyword with valid spans produces no warning."""
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(
-                            candidate_id="hash_001",
+                            candidateid="hash_001",
                             lemma="contratto",
                             count=1,
                             spans=[[24, 33]]  # Within text bounds
@@ -351,16 +385,16 @@ class TestKeywordPresenceVerifier:
     def test_keyword_with_out_of_bounds_span_warning(self):
         """Test that keyword with out-of-bounds span produces warning."""
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(
-                            candidate_id="hash_001",
+                            candidateid="hash_001",
                             lemma="contratto",
                             count=1,
                             spans=[[0, 999]]  # Out of bounds!
@@ -378,16 +412,16 @@ class TestKeywordPresenceVerifier:
     def test_keyword_invalid_candidateid_warning(self):
         """Test that keyword with invalid candidateid produces warning."""
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(
-                            candidate_id="hash_INVALID",
+                            candidateid="hash_INVALID",
                             lemma="invalid",
                             count=1
                         )
@@ -409,33 +443,38 @@ class TestSpansCoherenceVerifier:
         """Setup test fixtures."""
         self.verifier = SpansCoherenceVerifier()
         
-        self.email_doc = EmailDocument(
-            subject="Test",
-            from_address="test@example.com",
-            body_text_canonical="This is a test email with some content.",  # 41 chars
-            pii_entities=[],
-            removed_sections=[]
+        self.email_doc = create_test_email_doc(
+            "This is a test email with some content."  # 41 chars
         )
         
         self.request = TriageRequest(
-            email_document=self.email_doc,
-            candidate_keywords=[],
+            email=self.email_doc,
+            candidate_keywords=[
+                CandidateKeyword(
+                    candidate_id="test_001",
+                    term="test",
+                    lemma="test",
+                    count=1,
+                    source="body",
+                    score=0.9
+                )
+            ],
             dictionary_version=1
         )
     
     def test_valid_spans_no_warning(self):
         """Test that valid spans produce no warning."""
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(
-                            candidate_id="h1",
+                            candidateid="h1",
                             lemma="test",
                             count=1,
                             spans=[[10, 14], [20, 25]]  # Valid
@@ -454,16 +493,16 @@ class TestSpansCoherenceVerifier:
     def test_span_start_greater_than_end_warning(self):
         """Test that span with start >= end produces warning."""
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(
-                            candidate_id="h1",
+                            candidateid="h1",
                             lemma="test",
                             count=1,
                             spans=[[20, 10]]  # start > end!
@@ -481,16 +520,16 @@ class TestSpansCoherenceVerifier:
     def test_span_negative_start_warning(self):
         """Test that span with negative start produces warning."""
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(
-                            candidate_id="h1",
+                            candidateid="h1",
                             lemma="test",
                             count=1,
                             spans=[[-5, 10]]  # Negative start!
@@ -509,16 +548,16 @@ class TestSpansCoherenceVerifier:
         """Test that span with end > text length produces warning."""
         # Text length is 41 chars
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(
-                            candidate_id="h1",
+                            candidateid="h1",
                             lemma="test",
                             count=1,
                             spans=[[10, 100]]  # End > 41!
@@ -536,16 +575,16 @@ class TestSpansCoherenceVerifier:
     def test_span_invalid_format_warning(self):
         """Test that span with invalid format produces warning."""
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(
-                            candidate_id="h1",
+                            candidateid="h1",
                             lemma="test",
                             count=1,
                             spans=[[10, 20, 30]]  # Should be [start, end] not [start, end, extra]
@@ -563,15 +602,15 @@ class TestSpansCoherenceVerifier:
     def test_evidence_span_coherence(self):
         """Test that evidence spans are also checked for coherence."""
         response = EmailTriageResponse(
-            dictionary_version=1,
+            dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
-                        KeywordInText(candidate_id="h1", lemma="test", count=1)
+                    keywordsintext=[
+                        KeywordInText(candidateid="h1", lemma="test", count=1)
                     ],
                     evidence=[
                         EvidenceItem(quote="test", span=[50, 100])  # Out of bounds!
@@ -583,3 +622,8 @@ class TestSpansCoherenceVerifier:
         warnings = self.verifier.verify(response, self.request)
         assert len(warnings) >= 1
         assert any("evidence" in w and ("end > text length" in w or "text length" in w) for w in warnings)
+
+
+
+
+

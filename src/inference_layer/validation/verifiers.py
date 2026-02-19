@@ -39,7 +39,7 @@ class EvidencePresenceVerifier:
         warnings: list[str] = []
         
         # Get canonical email body text
-        email_text = request.email_document.body_text_canonical
+        email_text = request.email.body_text_canonical
         if not email_text:
             warnings.append("Email body_text_canonical is empty, cannot verify evidence presence")
             return warnings
@@ -56,7 +56,7 @@ class EvidencePresenceVerifier:
                 if quote_lower not in email_text_lower:
                     warnings.append(
                         f"Evidence quote not found in email text: '{quote[:100]}...' "
-                        f"(topic '{topic.label_id}', topic index {topic_idx}, "
+                        f"(topic '{topic.labelid}', topic index {topic_idx}, "
                         f"evidence index {ev_idx})"
                     )
                     continue
@@ -67,12 +67,12 @@ class EvidencePresenceVerifier:
                     if self._verify_span(email_text, quote, span_start, span_end):
                         logger.debug(
                             f"Evidence span verified: [{span_start}:{span_end}] "
-                            f"matches quote in topic '{topic.label_id}'"
+                            f"matches quote in topic '{topic.labelid}'"
                         )
                     else:
                         warnings.append(
                             f"Evidence span [{span_start}:{span_end}] does not match quote "
-                            f"in topic '{topic.label_id}' (topic index {topic_idx}, "
+                            f"in topic '{topic.labelid}' (topic index {topic_idx}, "
                             f"evidence index {ev_idx})"
                         )
         
@@ -123,7 +123,7 @@ class KeywordPresenceVerifier:
         warnings: list[str] = []
         
         # Get canonical email body text
-        email_text = request.email_document.body_text_canonical
+        email_text = request.email.body_text_canonical
         if not email_text:
             warnings.append("Email body_text_canonical is empty, cannot verify keyword presence")
             return warnings
@@ -141,15 +141,15 @@ class KeywordPresenceVerifier:
         }
         
         for topic_idx, topic in enumerate(response.topics):
-            for kw_idx, keyword in enumerate(topic.keywords_in_text):
-                candidate_id = keyword.candidate_id
+            for kw_idx, keyword in enumerate(topic.keywordsintext):
+                candidate_id = keyword.candidateid
                 
                 # Get term and lemma from candidate
                 if candidate_id not in candidate_map:
                     # This should have been caught by Stage 3, but handle gracefully
                     warnings.append(
                         f"Keyword candidateid '{candidate_id}' not in candidates "
-                        f"(topic '{topic.label_id}', keyword index {kw_idx})"
+                        f"(topic '{topic.labelid}', keyword index {kw_idx})"
                     )
                     continue
                 
@@ -165,7 +165,7 @@ class KeywordPresenceVerifier:
                     warnings.append(
                         f"Keyword term '{candidate_info['term']}' / lemma '{candidate_info['lemma']}' "
                         f"not found in email text (candidateid: {candidate_id}, "
-                        f"topic '{topic.label_id}', keyword index {kw_idx})"
+                        f"topic '{topic.labelid}', keyword index {kw_idx})"
                     )
                     continue
                 
@@ -227,17 +227,17 @@ class SpansCoherenceVerifier:
         """
         warnings: list[str] = []
         
-        email_text = request.email_document.body_text_canonical
+        email_text = request.email.body_text_canonical
         text_length = len(email_text) if email_text else 0
         
         # Check keyword spans
         for topic_idx, topic in enumerate(response.topics):
-            for kw_idx, keyword in enumerate(topic.keywords_in_text):
+            for kw_idx, keyword in enumerate(topic.keywordsintext):
                 if keyword.spans:
                     for span_idx, span in enumerate(keyword.spans):
                         warning = self._check_span(
                             span, text_length, 
-                            f"keyword '{keyword.lemma}' in topic '{topic.label_id}'"
+                            f"keyword '{keyword.lemma}' in topic '{topic.labelid}'"
                         )
                         if warning:
                             warnings.append(warning)
@@ -248,7 +248,7 @@ class SpansCoherenceVerifier:
                 if evidence.span:
                     warning = self._check_span(
                         evidence.span, text_length,
-                        f"evidence in topic '{topic.label_id}'"
+                        f"evidence in topic '{topic.labelid}'"
                     )
                     if warning:
                         warnings.append(warning)
@@ -286,3 +286,7 @@ class SpansCoherenceVerifier:
             return f"Span end > text length for {context}: [{start}, {end}] (text length: {text_length})"
         
         return None
+
+
+
+

@@ -3,12 +3,14 @@ Unit tests for Stage 3: Business Rules Validation.
 """
 
 import pytest
+from datetime import datetime
 
 from inference_layer.models.enums import TopicsEnum, SentimentEnum, PriorityEnum
 from inference_layer.models.input_models import (
     EmailDocument,
     CandidateKeyword,
     TriageRequest,
+    InputPipelineVersion,
 )
 from inference_layer.models.output_models import (
     EmailTriageResponse,
@@ -22,6 +24,34 @@ from inference_layer.validation.stage3_business_rules import Stage3BusinessRules
 from inference_layer.validation.exceptions import BusinessRuleViolation
 
 
+def create_test_email_doc(body_text: str) -> EmailDocument:
+    """Helper to create a minimal valid EmailDocument for testing."""
+    return EmailDocument(
+        uid="test_uid",
+        mailbox="INBOX",
+        message_id="<test@example.com>",
+        fetched_at=datetime.now(),
+        size=1000,
+        from_addr_redacted="test@example.com",
+        to_addrs_redacted=["support@example.com"],
+        subject_canonical="Test Subject",
+        date_parsed="Thu, 1 Jan 2026 12:00:00 +0000",
+        headers_canonical={},
+        body_text_canonical=body_text,
+        body_original_hash="test_hash",
+        pii_entities=[],
+        removed_sections=[],
+        pipeline_version=InputPipelineVersion(
+            parser_version="1.0",
+            canonicalization_version="1.0",
+            ner_model_version="1.0",
+            pii_redaction_version="1.0"
+        ),
+        processing_timestamp=datetime.now(),
+        processing_duration_ms=100
+    )
+
+
 class TestStage3BusinessRules:
     """Test suite for Stage 3 Business Rules validation."""
     
@@ -30,12 +60,8 @@ class TestStage3BusinessRules:
         self.stage3 = Stage3BusinessRules()
         
         # Create sample email document
-        self.email_doc = EmailDocument(
-            subject="Test Subject",
-            from_address="test@example.com",
-            body_text_canonical="Vorrei informazioni sul contratto e sulla garanzia.",
-            pii_entities=[],
-            removed_sections=[]
+        self.email_doc = create_test_email_doc(
+            "Vorrei informazioni sul contratto e sulla garanzia."
         )
         
         # Create sample candidates
@@ -68,7 +94,7 @@ class TestStage3BusinessRules:
         
         # Create sample request
         self.request = TriageRequest(
-            email_document=self.email_doc,
+            email=self.email_doc,
             candidate_keywords=self.candidates,
             dictionary_version=42
         )
@@ -76,14 +102,14 @@ class TestStage3BusinessRules:
     def test_valid_response_passes(self):
         """Test that valid response passes all business rules."""
         response = EmailTriageResponse(
-            dictionary_version=42,
+            dictionaryversion=42,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=["test"]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(
                             candidate_id="hash_001",
                             lemma="contratto",
@@ -103,14 +129,14 @@ class TestStage3BusinessRules:
     def test_dictionary_version_mismatch_raises_error(self):
         """Test that dictionary version mismatch raises BusinessRuleViolation."""
         response = EmailTriageResponse(
-            dictionary_version=999,  # Mismatch!
+            dictionaryversion=999,  # Mismatch!
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(candidate_id="hash_001", lemma="contratto", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test")]
@@ -128,14 +154,14 @@ class TestStage3BusinessRules:
     def test_invalid_topic_label_raises_error(self):
         """Test that invalid topic label (not in enum) raises BusinessRuleViolation."""
         response = EmailTriageResponse(
-            dictionary_version=42,
+            dictionaryversion=42,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="INVENTED_TOPIC",  # Not in TopicsEnum!
+                    labelid="INVENTED_TOPIC",  # Not in TopicsEnum!
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(candidate_id="hash_001", lemma="test", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test")]
@@ -154,14 +180,14 @@ class TestStage3BusinessRules:
     def test_invented_candidateid_raises_error(self):
         """Test that invented candidateid raises BusinessRuleViolation."""
         response = EmailTriageResponse(
-            dictionary_version=42,
+            dictionaryversion=42,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(
                             candidate_id="hash_INVENTED",  # Not in input candidates!
                             lemma="invented",
@@ -184,14 +210,14 @@ class TestStage3BusinessRules:
     def test_multiple_candidateids_one_invalid_raises_error(self):
         """Test that one invalid candidateid among many raises error."""
         response = EmailTriageResponse(
-            dictionary_version=42,
+            dictionaryversion=42,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(candidate_id="hash_001", lemma="contratto", count=1),
                         KeywordInText(candidate_id="hash_002", lemma="garanzia", count=1),
                         KeywordInText(candidate_id="hash_INVALID", lemma="invalid", count=1),  # Invalid!
@@ -210,22 +236,22 @@ class TestStage3BusinessRules:
     def test_multiple_topics_one_invalid_label_raises_error(self):
         """Test that one invalid topic label among many raises error."""
         response = EmailTriageResponse(
-            dictionary_version=42,
+            dictionaryversion=42,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(candidate_id="hash_001", lemma="contratto", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test1")]
                 ),
                 TopicResult(
-                    label_id="INVALID_TOPIC",  # Invalid!
+                    labelid="INVALID_TOPIC",  # Invalid!
                     confidence=0.8,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(candidate_id="hash_002", lemma="garanzia", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test2")]
@@ -242,14 +268,14 @@ class TestStage3BusinessRules:
     def test_invalid_sentiment_value_raises_error(self):
         """Test that invalid sentiment value raises BusinessRuleViolation."""
         response = EmailTriageResponse(
-            dictionary_version=42,
+            dictionaryversion=42,
             sentiment=SentimentResult(value="INVALID_SENTIMENT", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(candidate_id="hash_001", lemma="contratto", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test")]
@@ -266,14 +292,14 @@ class TestStage3BusinessRules:
     def test_invalid_priority_value_raises_error(self):
         """Test that invalid priority value raises BusinessRuleViolation."""
         response = EmailTriageResponse(
-            dictionary_version=42,
+            dictionaryversion=42,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="INVALID_PRIORITY", confidence=0.7, signals=[]),
             topics=[
                 TopicResult(
-                    label_id="CONTRATTO",
+                    labelid="CONTRATTO",
                     confidence=0.9,
-                    keywords_in_text=[
+                    keywordsintext=[
                         KeywordInText(candidate_id="hash_001", lemma="contratto", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test")]
@@ -292,14 +318,14 @@ class TestStage3BusinessRules:
         # Test all valid topics
         for topic_enum in TopicsEnum:
             response = EmailTriageResponse(
-                dictionary_version=42,
+                dictionaryversion=42,
                 sentiment=SentimentResult(value="neutral", confidence=0.8),
                 priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
                 topics=[
                     TopicResult(
-                        label_id=topic_enum.value,
+                        labelid=topic_enum.value,
                         confidence=0.9,
-                        keywords_in_text=[
+                        keywordsintext=[
                             KeywordInText(candidate_id="hash_001", lemma="test", count=1)
                         ],
                         evidence=[EvidenceItem(quote="test")]
@@ -312,14 +338,14 @@ class TestStage3BusinessRules:
         # Test all valid sentiments
         for sentiment_enum in SentimentEnum:
             response = EmailTriageResponse(
-                dictionary_version=42,
+                dictionaryversion=42,
                 sentiment=SentimentResult(value=sentiment_enum.value, confidence=0.8),
                 priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
                 topics=[
                     TopicResult(
-                        label_id="CONTRATTO",
+                        labelid="CONTRATTO",
                         confidence=0.9,
-                        keywords_in_text=[
+                        keywordsintext=[
                             KeywordInText(candidate_id="hash_001", lemma="test", count=1)
                         ],
                         evidence=[EvidenceItem(quote="test")]
@@ -332,14 +358,14 @@ class TestStage3BusinessRules:
         # Test all valid priorities
         for priority_enum in PriorityEnum:
             response = EmailTriageResponse(
-                dictionary_version=42,
+                dictionaryversion=42,
                 sentiment=SentimentResult(value="neutral", confidence=0.8),
                 priority=PriorityResult(value=priority_enum.value, confidence=0.7, signals=[]),
                 topics=[
                     TopicResult(
-                        label_id="CONTRATTO",
+                        labelid="CONTRATTO",
                         confidence=0.9,
-                        keywords_in_text=[
+                        keywordsintext=[
                             KeywordInText(candidate_id="hash_001", lemma="test", count=1)
                         ],
                         evidence=[EvidenceItem(quote="test")]
@@ -348,3 +374,5 @@ class TestStage3BusinessRules:
             )
             # Should not raise
             self.stage3.validate(response, self.request)
+
+

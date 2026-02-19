@@ -44,7 +44,7 @@ class Stage3BusinessRules:
         self._validate_topic_labels(response)
         
         # Rule 3: All candidateids must exist in input candidates
-        self._validate_candidate_ids(response, request)
+        self._validate_candidateids(response, request)
         
         # Rule 4: Sentiment and Priority must be valid enums (redundant with schema, but explicit check)
         self._validate_sentiment_priority(response)
@@ -89,16 +89,16 @@ class Stage3BusinessRules:
         valid_topics = set(topic.value for topic in TopicsEnum)
         
         for i, topic in enumerate(response.topics):
-            if topic.label_id not in valid_topics:
+            if topic.labelid not in valid_topics:
                 raise BusinessRuleViolation(
-                    f"Topic labelid '{topic.label_id}' is not in TopicsEnum",
+                    f"Topic labelid '{topic.labelid}' is not in TopicsEnum",
                     rule_name="topic_label_in_enum",
-                    invalid_value=topic.label_id,
+                    invalid_value=topic.labelid,
                     expected_values=sorted(valid_topics),
                     field_path=f"topics[{i}].labelid"
                 )
     
-    def _validate_candidate_ids(
+    def _validate_candidateids(
         self, 
         response: EmailTriageResponse, 
         request: TriageRequest
@@ -116,12 +116,12 @@ class Stage3BusinessRules:
             BusinessRuleViolation: If any candidateid doesn't exist in input
         """
         # Build set of valid candidate IDs
-        valid_candidate_ids = {candidate.candidate_id for candidate in request.candidate_keywords}
+        valid_candidateids = {candidate.candidate_id for candidate in request.candidate_keywords}
         
         # Check all keywords in all topics
         for topic_idx, topic in enumerate(response.topics):
-            for kw_idx, keyword in enumerate(topic.keywords_in_text):
-                if keyword.candidate_id not in valid_candidate_ids:
+            for kw_idx, keyword in enumerate(topic.keywordsintext):
+                if keyword.candidate_id not in valid_candidateids:
                     raise BusinessRuleViolation(
                         f"Keyword candidateid '{keyword.candidate_id}' not found in input candidates "
                         f"(LLM invented a keyword)",
@@ -165,3 +165,4 @@ class Stage3BusinessRules:
                 expected_values=sorted(valid_priorities),
                 field_path="priority.value"
             )
+
