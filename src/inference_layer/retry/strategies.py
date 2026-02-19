@@ -14,7 +14,7 @@ Retry Strategy Chain:
 """
 
 import asyncio
-import logging
+import structlog
 from typing import Protocol
 
 from inference_layer.config import Settings
@@ -33,7 +33,7 @@ from inference_layer.models.output_models import EmailTriageResponse
 from inference_layer.validation.exceptions import ValidationError
 from inference_layer.validation.pipeline import ValidationPipeline
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class RetryStrategy(Protocol):

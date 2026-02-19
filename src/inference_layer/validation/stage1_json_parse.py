@@ -6,11 +6,12 @@ This is a hard-fail stage: malformed JSON triggers retry.
 """
 
 import json
-import logging
+import structlog
 
+from inference_layer.monitoring.metrics import validation_failures_total
 from .exceptions import JSONParseError
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class Stage1JSONParse:
@@ -34,6 +35,9 @@ class Stage1JSONParse:
             JSONParseError: If content is not valid JSON
         """
         if not content or not content.strip():
+            validation_failures_total.labels(
+                stage="stage1", error_type="empty_content"
+            ).inc()
             raise JSONParseError(
                 "LLM response content is empty or whitespace-only",
                 raw_content=content,
@@ -44,6 +48,9 @@ class Stage1JSONParse:
             parsed = json.loads(content)
             
             if not isinstance(parsed, dict):
+                validation_failures_total.labels(
+                    stage="stage1", error_type="not_json_object"
+                ).inc()
                 raise JSONParseError(
                     f"LLM response is not a JSON object (got {type(parsed).__name__})",
                     raw_content=content,
@@ -54,6 +61,9 @@ class Stage1JSONParse:
             return parsed
             
         except json.JSONDecodeError as e:
+            validation_failures_total.labels(
+                stage="stage1", error_type="json_decode_error"
+            ).inc()
             raise JSONParseError(
                 f"Failed to parse LLM response as JSON: {e.msg}",
                 raw_content=content,
@@ -64,6 +74,9 @@ class Stage1JSONParse:
             raise
         except Exception as e:
             # Catch any other unexpected errors
+            validation_failures_total.labels(
+                stage="stage1", error_type="unexpected_error"
+            ).inc()
             raise JSONParseError(
                 f"Unexpected error during JSON parsing: {str(e)}",
                 raw_content=content,

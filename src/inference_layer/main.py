@@ -2,20 +2,24 @@
 FastAPI application entry point for LLM Inference Layer.
 """
 
-import logging
 from pathlib import Path
 
 import httpx
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from inference_layer.api.error_handlers import EXCEPTION_HANDLERS
+from inference_layer.api.middleware import RequestTracingMiddleware
 from inference_layer.api.routes_async import router as async_router
 from inference_layer.api.routes_sync import router as sync_router
 from inference_layer.config import settings
+from inference_layer.logging_config import configure_logging
 
-logger = logging.getLogger(__name__)
+# Configure structured logging before any other imports
+configure_logging(settings.LOG_LEVEL, settings.ENVIRONMENT)
+logger = structlog.get_logger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
@@ -25,6 +29,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Request tracing middleware (must be first for request_id in all logs)
+app.add_middleware(RequestTracingMiddleware)
 
 # CORS middleware (configure for production)
 app.add_middleware(
@@ -39,72 +46,81 @@ app.add_middleware(
 for exc_class, handler in EXCEPTION_HANDLERS.items():
     app.add_exception_handler(exc_class, handler)
 
-# Inlogger.info("Application startup")
+# Include routers
+app.include_router(sync_router, tags=["sync"])
+app.include_router(async_router, tags=["async"])
+
+
+# Startup event
+@app.on_event("startup")
+async def startup():
+    """Application startup - verify services and resources."""
+    logger.info(
+        "Application startup",
+        version=settings.APP_VERSION,
+        environment=settings.ENVIRONMENT,
+        ollama_base_url=settings.OLLAMA_BASE_URL,
+        model=settings.OLLAMA_MODEL,
+    )
     
     # Test Ollama connection
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(f"{settings.OLLAMA_BASE_URL}/api/tags")
             if response.status_code == 200:
-                logger.info("✓ Ollama connection successful")
+                logger.info("Ollama connection successful")
             else:
-                logger.warning(f"⚠ Ollama returned status {response.status_code}")
+                logger.warning("Ollama returned non-200 status", status_code=response.status_code)
     except Exception as e:
-        logger.error(f"✗ Ollama connection failed: {e}")
+        logger.error("Ollama connection failed", exc_info=e)
     
     # Verify JSON Schema exists
     schema_path = Path(settings.JSON_SCHEMA_PATH)
     if schema_path.exists():
-        logger.info(f"✓ JSON Schema loaded from {schema_path}")
+        logger.info("JSON Schema loaded", path=str(schema_path))
     else:
-        logger.error(f"✗ JSON Schema not found at {schema_path}")
+        logger.error("JSON Schema not found", path=str(schema_path))
     
     # Verify prompt templates exist
+    templates_dir = Path(settings.PROMPT_TEMPLATES_DIR)
+    if templates_dir.exists():
+        logger.info("Prompt templates directory found", path=str(templates_dir))
+    else:
+        logger.error("Prompt templates directory not found", path=str(templates_dir))
+    
+    logger.info("Application startup complete")
+
+
+# Shutdown event
+@app.on_event("shutdown")
+async def shutdown():
+    """Application shutdown - cleanup resources."""
     logger.info("Application shutdown")
     # Resources are managed by FastAPI dependency injection lifecycle
     # LLM client connections are automatically closed
-    logger.info("Application shutdown complete")logger.info(f"✓ Prompt templates directory found: {templates_dir}")
-    else:
-        logger.error(f"✗ Prompt templates directory not found: {templates_dir}")
-    
-    logger.info("Application startup complete")
+    logger.info("Application shutdown complete")
+
+
 # Prometheus metrics instrumentation
 if settings.PROMETHEUS_ENABLED:
     Instrumentator().instrument(app).expose(app)
 
-    "docs": "/docs",
+
+@app.get("/")
+async def root():
+    """Root endpoint with API documentation links."""
+    return {
+        "service": "LLM Inference Layer",
+        "version": settings.APP_VERSION,
+        "docs": "/docs",
         "health": "/health",
         "schema": "/schema",
         "metrics": "/metrics" if settings.PROMETHEUS_ENABLED else None,
     }
 
 
-# Note: /health endpoint is now in routes_sync.py with full service checks
-        "service": "LLM Inference Layer",
-        "version": "0.1.0",
-        "status": "running",
-    }
-
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    # TODO: Check Ollama connection
-    # TODO: Check Redis connection
-    # TODO: Check DB connection
-    return {
-        "status": "healthy",
-        "ollama": "unknown",
-        "redis": "unknown",
-        "database": "unknown",
-    }
-
-
-# Import and include routers (will be created in Phase 5)
-# from inference_layer.api.routes_sync import router as sync_router
-# from inference_layer.api.routes_async import router as async_router
-# app.include_router(sync_router, tags=["sync"])
-# app.include_router(async_router, tags=["async"])
+# Note: /health, /triage endpoints are in routes_sync.py
+# Async endpoints (/triage/batch, /triage/task) are in routes_async.py
 
 
 if __name__ == "__main__":

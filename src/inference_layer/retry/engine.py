@@ -16,7 +16,7 @@ Usage:
     response, metadata, warnings = await engine.execute_with_retry(request)
 """
 
-import logging
+import structlog
 import time
 
 from typing import TYPE_CHECKING
@@ -41,7 +41,7 @@ from inference_layer.validation.pipeline import ValidationPipeline
 if TYPE_CHECKING:
     from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class RetryEngine:

@@ -4,7 +4,7 @@ FastAPI exception handlers for structured error responses.
 Maps domain exceptions to appropriate HTTP status codes and formats.
 """
 
-import logging
+import structlog
 from datetime import datetime
 
 from fastapi import Request, status
@@ -26,7 +26,7 @@ from inference_layer.validation.exceptions import (
     ValidationError,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 async def validation_error_handler(request: Request, exc: ValidationError) -> JSONResponse:

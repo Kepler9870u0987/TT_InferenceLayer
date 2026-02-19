@@ -37,8 +37,8 @@ Transforms canonicalized emails into structured, auditable output containing top
        │                                           │
        ▼                                           ▼
 ┌─────────────┐                             ┌────────────┐
-│   Redis     │                             │ PostgreSQL │
-│   Broker    │                             │    DB      │
+│   Redis     │◀────────────────────────────│   Redis    │
+│   Broker    │                             │ Persistence│
 └─────────────┘                             └────────────┘
 ```
 
@@ -47,8 +47,7 @@ Transforms canonicalized emails into structured, auditable output containing top
 - **Ollama** (demo/MVP): Local LLM inference with structured output
 - **SGLang** (future): Production inference server with guided decoding
 - **Celery**: Async task queue for batch processing
-- **Redis**: Broker and result backend
-- **PostgreSQL**: Result storage and DLQ
+- **Redis**: Broker, result backend, persistence layer, and DLQ storage
 
 ---
 
@@ -56,7 +55,6 @@ Transforms canonicalized emails into structured, auditable output containing top
 
 - **Docker** & **Docker Compose** (recommended) OR:
   - Python 3.11+
-  - PostgreSQL 16+
   - Redis 7+
   - Ollama (with at least one model pulled)
 
@@ -654,7 +652,7 @@ docker-compose exec redis redis-cli ping
   - ✓ Unit tests (dependencies, models)
   - ✓ Integration tests (TestClient, health checks)
 - [ ] **Phase 6**: PII Redaction (on-the-fly for LLM, configurable)
-- [ ] **Phase 7**: Persistence (PostgreSQL, DLQ table, repository pattern)
+- [x] **Phase 7**: Persistence (Redis-based, DLQ storage, repository pattern)
 - [ ] **Phase 8**: Configuration & Docker (finalize Dockerfiles, healthchecks)
 - [ ] **Phase 9**: Tests (comprehensive unit + integration coverage ≥85%)
 - [ ] **Phase 10**: Logging, Metrics, CI (structured logging, Grafana dashboards, GitHub Actions)

@@ -6,7 +6,7 @@ For batch processing, use async routes instead.
 """
 
 import json
-import logging
+import structlog
 import time
 from datetime import datetime
 from pathlib import Path
@@ -33,7 +33,7 @@ from inference_layer.models.pipeline_version import PipelineVersion
 from inference_layer.persistence.repository import AsyncTriageRepository
 from inference_layer.retry.engine import RetryEngine
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Prometheus metrics
 triage_requests_total = Counter(

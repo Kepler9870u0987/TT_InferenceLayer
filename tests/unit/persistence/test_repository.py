@@ -9,12 +9,19 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from inference_layer.config import Settings
-from inference_layer.models.output_models import TriageResult, TriageResponse
+from inference_layer.models.output_models import (
+    TriageResult,
+    EmailTriageResponse,
+    SentimentResult,
+    PriorityResult,
+)
+from inference_layer.models.enums import SentimentEnum, PriorityEnum
 from inference_layer.models.pipeline_version import PipelineVersion
 from inference_layer.persistence.repository import TriageRepository
 from inference_layer.retry.exceptions import RetryExhausted
 from inference_layer.retry.metadata import RetryMetadata
 from inference_layer.models.input_models import TriageRequest
+from inference_layer.validation.exceptions import ValidationError
 
 
 @pytest.fixture
@@ -41,12 +48,15 @@ def repository(mock_redis, mock_settings):
 def sample_result():
     """Sample TriageResult for testing."""
     return TriageResult(
-        triage_response=TriageResponse(
+        triage_response=EmailTriageResponse(
+            dictionaryversion=1,
             topics=[],
-            sentiments=[],
-            priority_level="P3",
-            requires_human_review=False,
-            summary="Test summary",
+            sentiment=SentimentResult(value=SentimentEnum.NEUTRAL, confidence=0.8),
+            priority=PriorityResult(
+                value=PriorityEnum.P3,
+                confidence=0.7,
+                signals=["routine inquiry"]
+            ),
         ),
         pipeline_version=PipelineVersion(
             dictionary_version=1,
@@ -175,7 +185,7 @@ def test_save_to_dlq_success(repository, mock_redis):
     exc = RetryExhausted(
         request=mock_request,
         retry_metadata=mock_metadata,
-        last_error=ValueError("Test error"),
+        last_error=ValidationError("Test error"),
     )
     
     result = repository.save_to_dlq(exc)

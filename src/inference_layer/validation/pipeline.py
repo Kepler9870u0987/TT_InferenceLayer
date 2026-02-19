@@ -12,7 +12,7 @@ Stages 1-3 raise exceptions (caught by retry engine).
 Stage 4 + verifiers accumulate warnings (non-blocking).
 """
 
-import logging
+import structlog
 from dataclasses import dataclass
 
 from pydantic import ValidationError as PydanticValidationError
@@ -32,7 +32,7 @@ from .verifiers import (
     SpansCoherenceVerifier,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 @dataclass

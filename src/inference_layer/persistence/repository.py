@@ -12,7 +12,7 @@ Storage Strategy:
 """
 
 import json
-import logging
+import structlog
 from datetime import datetime
 from typing import Optional
 
@@ -23,7 +23,7 @@ from inference_layer.config import Settings
 from inference_layer.models.output_models import TriageResult
 from inference_layer.retry.exceptions import RetryExhausted
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class TriageRepository:
@@ -75,11 +75,12 @@ class TriageRepository:
             )
             
             # Add to timestamp index for queries
-            timestamp = datetime.fromisoformat(result.created_at).timestamp() if isinstance(result.created_at, str) else result.created_at.timestamp()
-            self.redis.zadd(
-                self.RESULTS_INDEX,
-                {result.request_uid: timestamp}
-            )
+            if result.created_at:
+                timestamp = datetime.fromisoformat(result.created_at).timestamp() if isinstance(result.created_at, str) else result.created_at.timestamp()
+                self.redis.zadd(
+                    self.RESULTS_INDEX,
+                    {result.request_uid: timestamp}
+                )
             
             # Map task_id to request_uid if provided
             if task_id:
@@ -378,11 +379,12 @@ class AsyncTriageRepository:
                 value=result_json
             )
             
-            timestamp = datetime.fromisoformat(result.created_at).timestamp() if isinstance(result.created_at, str) else result.created_at.timestamp()
-            await self.redis.zadd(
-                self.RESULTS_INDEX,
-                {result.request_uid: timestamp}
-            )
+            if result.created_at:
+                timestamp = datetime.fromisoformat(result.created_at).timestamp() if isinstance(result.created_at, str) else result.created_at.timestamp()
+                await self.redis.zadd(
+                    self.RESULTS_INDEX,
+                    {result.request_uid: timestamp}
+                )
             
             if task_id:
                 task_key = f"{self.TASK_PREFIX}{task_id}"

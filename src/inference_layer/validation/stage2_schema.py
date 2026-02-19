@@ -6,15 +6,16 @@ This is a hard-fail stage: schema violations trigger retry.
 """
 
 import json
-import logging
+import structlog
 from pathlib import Path
 
 import jsonschema
 from jsonschema import Draft7Validator
 
+from inference_layer.monitoring.metrics import validation_failures_total
 from .exceptions import SchemaValidationError
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class Stage2SchemaValidation:
@@ -50,6 +51,9 @@ class Stage2SchemaValidation:
         
         schema_file = Path(self.schema_path)
         if not schema_file.exists():
+            validation_failures_total.labels(
+                stage="stage2", error_type="schema_file_not_found"
+            ).inc()
             raise SchemaValidationError(
                 f"JSON Schema file not found: {self.schema_path}",
                 schema_path=self.schema_path
@@ -68,6 +72,9 @@ class Stage2SchemaValidation:
             return self._schema
             
         except Exception as e:
+            validation_failures_total.labels(
+                stage="stage2", error_type="schema_load_error"
+            ).inc()
             raise SchemaValidationError(
                 f"Failed to load JSON Schema: {str(e)}",
                 schema_path=self.schema_path
@@ -107,6 +114,9 @@ class Stage2SchemaValidation:
                 path = ".".join(str(p) for p in error.path) if error.path else "root"
                 error_messages.append(f"{path}: {error.message}")
             
+            validation_failures_total.labels(
+                stage="stage2", error_type="schema_validation_failed"
+            ).inc()
             raise SchemaValidationError(
                 f"JSON Schema validation failed with {len(errors)} error(s)",
                 validation_errors=error_messages,

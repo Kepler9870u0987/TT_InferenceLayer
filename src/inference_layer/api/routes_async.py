@@ -5,7 +5,7 @@ These endpoints use Celery for task queue management and are suitable
 for production batch workloads.
 """
 
-import logging
+import structlog
 from datetime import datetime
 from uuid import uuid4
 
@@ -25,7 +25,7 @@ from inference_layer.persistence.repository import AsyncTriageRepository
 from inference_layer.tasks.celery_app import celery_app
 from inference_layer.tasks.triage_tasks import triage_email_task
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 

@@ -6,7 +6,7 @@ with Celery's JSON serialization.
 """
 
 import asyncio
-import logging
+import structlog
 import time
 from datetime import datetime
 from pathlib import Path
@@ -26,7 +26,7 @@ from inference_layer.retry.exceptions import RetryExhausted
 from inference_layer.tasks.celery_app import celery_app
 from inference_layer.validation.pipeline import ValidationPipeline
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class TriageTask(Task):

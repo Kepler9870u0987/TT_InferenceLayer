@@ -9,11 +9,11 @@ Non-blocking quality checks that produce warnings:
 Unlike Stages 1-3, these do NOT raise exceptions - they accumulate warnings.
 """
 
-import logging
+import structlog
 
 from ..models.output_models import EmailTriageResponse
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class Stage4QualityChecks:

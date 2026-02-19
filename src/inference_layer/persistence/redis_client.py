@@ -5,7 +5,7 @@ Uses redis-py with connection pooling for efficient resource usage.
 Supports both sync and async operations.
 """
 
-import logging
+import structlog
 from typing import Optional
 
 from redis import ConnectionPool, Redis
@@ -14,7 +14,7 @@ from redis.asyncio import Redis as AsyncRedis
 
 from inference_layer.config import Settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class RedisClient:

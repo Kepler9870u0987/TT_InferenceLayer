@@ -9,14 +9,15 @@ Validate business-specific constraints:
 This is a hard-fail stage: violations trigger retry.
 """
 
-import logging
+import structlog
 
+from inference_layer.monitoring.metrics import validation_failures_total
 from ..models.enums import TopicsEnum, SentimentEnum, PriorityEnum
 from ..models.input_models import TriageRequest
 from ..models.output_models import EmailTriageResponse
 from .exceptions import BusinessRuleViolation
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class Stage3BusinessRules:
@@ -67,6 +68,9 @@ class Stage3BusinessRules:
             BusinessRuleViolation: If versions don't match
         """
         if response.dictionary_version != request.dictionary_version:
+            validation_failures_total.labels(
+                stage="stage3", error_type="dictionary_version_mismatch"
+            ).inc()
             raise BusinessRuleViolation(
                 f"Dictionary version mismatch: response has {response.dictionary_version}, "
                 f"expected {request.dictionary_version}",
@@ -90,6 +94,9 @@ class Stage3BusinessRules:
         
         for i, topic in enumerate(response.topics):
             if topic.labelid not in valid_topics:
+                validation_failures_total.labels(
+                    stage="stage3", error_type="invalid_topic_label"
+                ).inc()
                 raise BusinessRuleViolation(
                     f"Topic labelid '{topic.labelid}' is not in TopicsEnum",
                     rule_name="topic_label_in_enum",
@@ -122,6 +129,9 @@ class Stage3BusinessRules:
         for topic_idx, topic in enumerate(response.topics):
             for kw_idx, keyword in enumerate(topic.keywordsintext):
                 if keyword.candidate_id not in valid_candidateids:
+                    validation_failures_total.labels(
+                        stage="stage3", error_type="invalid_candidateid"
+                    ).inc()
                     raise BusinessRuleViolation(
                         f"Keyword candidateid '{keyword.candidate_id}' not found in input candidates "
                         f"(LLM invented a keyword)",
@@ -147,6 +157,9 @@ class Stage3BusinessRules:
         # Validate sentiment
         valid_sentiments = set(sentiment.value for sentiment in SentimentEnum)
         if response.sentiment.value not in valid_sentiments:
+            validation_failures_total.labels(
+                stage="stage3", error_type="invalid_sentiment"
+            ).inc()
             raise BusinessRuleViolation(
                 f"Sentiment value '{response.sentiment.value}' is not in SentimentEnum",
                 rule_name="sentiment_in_enum",
@@ -158,6 +171,9 @@ class Stage3BusinessRules:
         # Validate priority
         valid_priorities = set(priority.value for priority in PriorityEnum)
         if response.priority.value not in valid_priorities:
+            validation_failures_total.labels(
+                stage="stage3", error_type="invalid_priority"
+            ).inc()
             raise BusinessRuleViolation(
                 f"Priority value '{response.priority.value}' is not in PriorityEnum",
                 rule_name="priority_in_enum",
