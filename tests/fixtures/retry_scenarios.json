@@ -1,0 +1,259 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Retry Test Scenarios",
+  "description": "Documented test scenarios for retry engine testing",
+  "scenarios": [
+    {
+      "name": "standard_retry_success",
+      "description": "Standard retry strategy succeeds on second attempt after initial validation failure",
+      "attempt_outcomes": [
+        {
+          "attempt": 1,
+          "strategy": "standard",
+          "result": "validation_error",
+          "error_type": "JSONParseError",
+          "backoff_seconds": 0
+        },
+        {
+          "attempt": 2,
+          "strategy": "standard",
+          "result": "success",
+          "backoff_seconds": 4
+        }
+      ],
+      "expected_metadata": {
+        "total_attempts": 2,
+        "strategies_used": ["standard"],
+        "final_strategy": "standard",
+        "validation_failures_count": 1
+      }
+    },
+    {
+      "name": "shrink_needed",
+      "description": "Standard retry exhausted, shrink strategy succeeds with reduced input",
+      "attempt_outcomes": [
+        {
+          "attempt": 1,
+          "strategy": "standard",
+          "result": "validation_error",
+          "error_type": "SchemaValidationError",
+          "backoff_seconds": 0
+        },
+        {
+          "attempt": 2,
+          "strategy": "standard",
+          "result": "validation_error",
+          "error_type": "SchemaValidationError",
+          "backoff_seconds": 4
+        },
+        {
+          "attempt": 3,
+          "strategy": "standard",
+          "result": "validation_error",
+          "error_type": "SchemaValidationError",
+          "backoff_seconds": 8
+        },
+        {
+          "attempt": 4,
+          "strategy": "shrink",
+          "result": "success",
+          "backoff_seconds": 0,
+          "shrink_mode": true
+        }
+      ],
+      "expected_metadata": {
+        "total_attempts": 4,
+        "strategies_used": ["standard", "shrink"],
+        "final_strategy": "shrink",
+        "validation_failures_count": 3
+      }
+    },
+    {
+      "name": "fallback_needed",
+      "description": "Standard and shrink exhausted, fallback model succeeds",
+      "attempt_outcomes": [
+        {
+          "attempt": 1,
+          "strategy": "standard",
+          "result": "validation_error",
+          "error_type": "BusinessRuleViolation",
+          "backoff_seconds": 0
+        },
+        {
+          "attempt": 2,
+          "strategy": "standard",
+          "result": "validation_error",
+          "error_type": "BusinessRuleViolation",
+          "backoff_seconds": 4
+        },
+        {
+          "attempt": 3,
+          "strategy": "standard",
+          "result": "validation_error",
+          "error_type": "BusinessRuleViolation",
+          "backoff_seconds": 8
+        },
+        {
+          "attempt": 4,
+          "strategy": "shrink",
+          "result": "validation_error",
+          "error_type": "BusinessRuleViolation",
+          "backoff_seconds": 0,
+          "shrink_mode": true
+        },
+        {
+          "attempt": 5,
+          "strategy": "shrink",
+          "result": "validation_error",
+          "error_type": "BusinessRuleViolation",
+          "backoff_seconds": 4,
+          "shrink_mode": true
+        },
+        {
+          "attempt": 6,
+          "strategy": "fallback",
+          "result": "success",
+          "backoff_seconds": 0,
+          "fallback_model": "llama3.1:8b"
+        }
+      ],
+      "expected_metadata": {
+        "total_attempts": 6,
+        "strategies_used": ["standard", "shrink", "fallback"],
+        "final_strategy": "fallback",
+        "validation_failures_count": 5
+      }
+    },
+    {
+      "name": "dlq_routing",
+      "description": "All retry strategies exhausted, RetryExhausted raised for DLQ routing",
+      "attempt_outcomes": [
+        {
+          "attempt": 1,
+          "strategy": "standard",
+          "result": "validation_error",
+          "error_type": "JSONParseError",
+          "backoff_seconds": 0
+        },
+        {
+          "attempt": 2,
+          "strategy": "standard",
+          "result": "validation_error",
+          "error_type": "SchemaValidationError",
+          "backoff_seconds": 4
+        },
+        {
+          "attempt": 3,
+          "strategy": "standard",
+          "result": "validation_error",
+          "error_type": "BusinessRuleViolation",
+          "backoff_seconds": 8
+        },
+        {
+          "attempt": 4,
+          "strategy": "shrink",
+          "result": "validation_error",
+          "error_type": "SchemaValidationError",
+          "backoff_seconds": 0,
+          "shrink_mode": true
+        },
+        {
+          "attempt": 5,
+          "strategy": "shrink",
+          "result": "validation_error",
+          "error_type": "BusinessRuleViolation",
+          "backoff_seconds": 4,
+          "shrink_mode": true
+        },
+        {
+          "attempt": 6,
+          "strategy": "fallback",
+          "result": "validation_error",
+          "error_type": "SchemaValidationError",
+          "backoff_seconds": 0,
+          "fallback_model": "llama3.1:8b"
+        }
+      ],
+      "expected_result": "RetryExhausted",
+      "expected_metadata": {
+        "total_attempts": 6,
+        "strategies_used": ["standard", "shrink", "fallback"],
+        "final_strategy": "fallback",
+        "validation_failures_count": 6
+      }
+    },
+    {
+      "name": "timeout_triggers_shrink",
+      "description": "LLM timeout on large request, shrink mode succeeds with reduced input",
+      "attempt_outcomes": [
+        {
+          "attempt": 1,
+          "strategy": "standard",
+          "result": "llm_timeout",
+          "error_type": "LLMTimeoutError",
+          "backoff_seconds": 0
+        },
+        {
+          "attempt": 2,
+          "strategy": "shrink",
+          "result": "success",
+          "backoff_seconds": 0,
+          "shrink_mode": true,
+          "note": "Reduced candidates from 100 to 50, body from 8000 to 4000 chars"
+        }
+      ],
+      "expected_metadata": {
+        "total_attempts": 2,
+        "strategies_used": ["standard", "shrink"],
+        "final_strategy": "shrink",
+        "validation_failures_count": 1
+      }
+    },
+    {
+      "name": "model_unavailable_triggers_fallback",
+      "description": "Primary model not available, immediately escalate to fallback",
+      "attempt_outcomes": [
+        {
+          "attempt": 1,
+          "strategy": "standard",
+          "result": "model_not_available",
+          "error_type": "LLMModelNotAvailableError",
+          "backoff_seconds": 0
+        },
+        {
+          "attempt": 2,
+          "strategy": "fallback",
+          "result": "success",
+          "backoff_seconds": 0,
+          "fallback_model": "llama3.1:8b"
+        }
+      ],
+      "expected_metadata": {
+        "total_attempts": 2,
+        "strategies_used": ["standard", "fallback"],
+        "final_strategy": "fallback",
+        "validation_failures_count": 1
+      }
+    }
+  ],
+  "notes": {
+    "backoff_formula": "2^attempt seconds (2s, 4s, 8s)",
+    "max_retries_standard": 3,
+    "max_retries_shrink": 2,
+    "max_retries_fallback": "len(FALLBACK_MODELS)",
+    "validation_errors_trigger_retry": [
+      "JSONParseError",
+      "SchemaValidationError",
+      "BusinessRuleViolation"
+    ],
+    "stage4_warnings_do_not_trigger_retry": true,
+    "shrink_mode_settings": {
+      "body_limit": 4000,
+      "candidates_top_n": 50
+    },
+    "normal_mode_settings": {
+      "body_limit": 8000,
+      "candidates_top_n": 100
+    }
+  }
+}

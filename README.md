@@ -204,10 +204,23 @@ curl http://localhost:8000/schema
 
 ### 1. Install dependencies
 
+**Option A: Using pyproject.toml (recommended)**
 ```bash
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -e ".[dev]"
+```
+
+**Option B: Using requirements files**
+```bash
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# For development (includes all dependencies)
+pip install -r requirements-dev.txt
+
+# For production only
+pip install -r requirements.txt
 ```
 
 ### 2. Setup services

@@ -3,7 +3,7 @@
 > **Progetto**: Thread Classificator Mail - LLM Inference Layer  
 > **Data inizio**: 2026-02-19  
 > **Ultimo aggiornamento**: 2026-02-19  
-> **Stato generale**: 🟡 IN PROGRESS (Fase 0, 1, 2, 3 completate - Fase 4 prossima)
+> **Stato generale**: 🟡 IN PROGRESS (Fase 0, 1, 2, 3, 4 completate - Fase 5 prossima)
 
 ---
 
@@ -15,7 +15,7 @@
 | **Fase 1** — Data Models | 🟢 Completed | 100% | Enums, input/output models, JSON Schema, fixtures done |
 | **Fase 2** — LLM Client | 🟢 Completed | 100% | BaseLLMClient, OllamaClient, PromptBuilder, PII redactor, tests done |
 | **Fase 3** — Validation | 🟢 Completed | 100% | 4-stage pipeline, verifiers, 85+ tests, fixtures complete |
-| **Fase 4** — Retry Engine | ⚪ Not Started | 0% | - |
+| **Fase 4** — Retry Engine | 🟢 Completed | 100% | 4-level retry strategy, metadata tracking, 50+ tests done |
 | **Fase 5** — API FastAPI | ⚪ Not Started | 0% | - |
 | **Fase 6** — PII Redaction | ⚪ Not Started | 0% | - |
 | **Fase 7** — Persistenza | ⚪ Not Started | 0% | - |
@@ -241,21 +241,94 @@
 
 ---
 
-## Fase 4 — Retry Engine + Fallback (2–3 giorni)
+## Fase 4 — Retry Engine + Fallback (2–3 giorni) ✅ COMPLETED
 
 ### Tasks
 
-- [ ] 4.1 — Retry standard (max 3 tentativi, backoff esponenziale)
-- [ ] 4.2 — Shrink request (meno candidati + body più corto)
-- [ ] 4.3 — Fallback modello alternativo
-- [ ] 4.4 — DLQ routing + logging
+- [x] 4.1 — Retry standard (max 3 tentativi, backoff esponenziale)
+- [x] 4.2 — Shrink request (meno candidati + body più corto)
+- [x] 4.3 — Fallback modello alternativo
+- [x] 4.4 — DLQ routing + logging
+- [x] 4.5 — Retry exceptions (RetryExhausted)
+- [x] 4.6 — Retry metadata tracking (RetryMetadata)
+- [x] 4.7 — Strategy pattern implementation (StandardRetryStrategy, ShrinkRetryStrategy, FallbackModelStrategy)
+- [x] 4.8 — Main retry engine orchestrator (RetryEngine)
+- [x] 4.9 — Unit tests for strategies (25+ test cases)
+- [x] 4.10 — Unit tests for engine (20+ test cases)
+- [x] 4.11 — Integration tests with real Ollama (6 scenarios)
+- [x] 4.12 — Test fixtures for retry scenarios
 
 ### Files Created
-- N/A
+- `src/inference_layer/retry/exceptions.py` (RetryExhausted with complete context)
+- `src/inference_layer/retry/metadata.py` (RetryMetadata frozen dataclass for audit trails)
+- `src/inference_layer/retry/strategies.py` (RetryStrategy Protocol + 3 concrete strategies)
+- `src/inference_layer/retry/engine.py` (RetryEngine orchestrator with 4-level escalation)
+- `tests/unit/retry/__init__.py`
+- `tests/unit/retry/test_strategies.py` (25+ test cases for all strategies)
+- `tests/unit/retry/test_engine.py` (20+ test cases for engine orchestration)
+- `tests/integration/retry/__init__.py`
+- `tests/integration/retry/test_retry_integration.py` (6 integration tests with real Ollama)
+- `tests/fixtures/retry_scenarios.json` (documented retry scenarios for testing)
 
 ### Notes
-- Policy a 4 livelli: retry → shrink → fallback → DLQ
-- Logging strutturato per audit
+- **4-Level Retry Policy**: 
+  1. **Standard Retry**: Up to MAX_RETRIES (default: 3) with exponential backoff (2^attempt seconds: 2s, 4s, 8s)
+  2. **Shrink Request**: Reduced input (SHRINK_TOP_N=50 candidates, SHRINK_BODY_LIMIT=4000 chars) for 2 attempts
+  3. **Fallback Model**: Switch to alternative LLM models from FALLBACK_MODELS list (1 attempt per model)
+  4. **DLQ Routing**: Raise RetryExhausted with complete metadata for manual review
+- **Strategy Pattern**: Clean separation of concerns, each strategy is independent and testable
+- **Metadata Tracking**: Complete audit trail with attempts, strategies used, latency, validation failures
+- **Error Preservation**: Full error context maintained through retry chain for debugging/metrics
+- **Async-First**: All strategies async, consistent with LLM client and validation pipeline
+- **Structured Logging**: Strategy transitions, attempts, errors logged with structured context
+- **Temporary DLQ**: Phase 4 uses logging for DLQ; Phase 7 will add persistence
+
+### Architecture Highlights
+- **RetryEngine**: Main orchestrator that chains strategies in sequence
+- **RetryStrategy Protocol**: Defines contract for retry strategies (Strategy Pattern)
+- **StandardRetryStrategy**: Exponential backoff without input modification
+- **ShrinkRetryStrategy**: Uses PromptBuilder's shrink_mode=True to reduce input size
+- **FallbackModelStrategy**: Cycles through FALLBACK_MODELS list for model switching
+- **RetryMetadata**: Frozen dataclass capturing complete retry history (attempts, strategies, latency, failures)
+- **RetryExhausted Exception**: Contains request, metadata, and last error for DLQ routing
+
+### Testing Coverage
+- **Unit Tests (Strategies)**: 25+ test cases
+  - StandardRetryStrategy: success first/second attempt, validation failures, backoff timing
+  - ShrinkRetryStrategy: shrink mode usage, reduced max retries
+  - FallbackModelStrategy: model switching, model cycling, empty model list handling
+  - Exponential backoff timing verification (2s, 4s, 8s)
+- **Unit Tests (Engine)**: 20+ test cases
+  - Success scenarios: first attempt, second attempt, after shrink, after fallback
+  - Escalation chain: standard → shrink, standard → shrink → fallback
+  - Failure scenarios: RetryExhausted with complete metadata
+  - Metadata tracking: attempts, strategies, latency, warnings, validation failures
+  - Edge cases: no fallback models, error context preservation
+- **Integration Tests**: 6 scenarios (require Ollama running)
+  - Full retry with real Ollama + validation
+  - Shrink mode reduces prompt size
+  - Invalid JSON fixture forces retry
+  - All strategies exhausted (RetryExhausted)
+  - Latency tracking accuracy
+- **Test Fixtures**: retry_scenarios.json documents 7 test scenarios with expected outcomes
+
+### Configuration (Already in config.py)
+- `MAX_RETRIES`: 3 (standard retry attempts)
+- `RETRY_BACKOFF_BASE`: 2.0 (exponential backoff multiplier)
+- `SHRINK_TOP_N`: 50 (reduced candidate count for shrink mode)
+- `SHRINK_BODY_LIMIT`: 4000 (reduced body limit for shrink mode)
+- `FALLBACK_MODELS`: [] (list of fallback model names, e.g., ["llama3.1:8b", "mistral:7b"])
+
+### Decisions Made
+- **Strategy Pattern over if/else chain**: Extensible, testable, follows SOLID principles
+- **Temporary DLQ logging**: Phase 7 adds persistence; logging sufficient for Phase 4-5 demo/testing
+- **No request mutation**: Create new TriageRequest instances for shrink (preserves immutability, audit trail)
+- **Async sleep for backoff**: Non-blocking (asyncio.sleep()), consistent with FastAPI async runtime
+- **Chain exceptions**: Preserve original ValidationError cause in RetryExhausted.__cause__ for debugging
+- **Frozen metadata**: RetryMetadata is immutable (frozen=True) to prevent accidental modification
+- **Max retries per strategy**: Standard=3, Shrink=2, Fallback=len(FALLBACK_MODELS) (reasonable defaults)
+- **PromptBuilder integration**: Leverages existing shrink_mode parameter (no duplication)
+- **Structured error details**: All ValidationErrors have .details dict captured in metadata.validation_failures
 
 ---
 
@@ -388,9 +461,13 @@ _Nessun blocker al momento._
 13. ✅ Unit tests completi per validation (85+ test cases)
 14. ✅ Integration tests per validation pipeline
 15. ✅ Invalid test fixtures per failure scenarios
-16. 🔄 **CURRENT**: Implementare retry engine con fallback strategies (Phase 4)
-17. 🔜 Implementare API FastAPI (endpoints sincroni/asincroni)
-18. 🔜 Implementare persistence layer (PostgreSQL + JSONB)
+16. ✅ Implementare retry engine con fallback strategies (Phase 4)
+17. ✅ Implementare retry strategies (StandardRetryStrategy, ShrinkRetryStrategy, FallbackModelStrategy)
+18. ✅ Implementare retry metadata tracking e exceptions
+19. ✅ Unit & integration tests per retry engine (50+ test cases)
+20. 🔄 **CURRENT**: Implementare API FastAPI (endpoints sincroni/asincroni) - Phase 5
+21. 🔜 Implementare persistence layer (PostgreSQL + JSONB + DLQ) - Phase 7
+22. 🔜 Implementare structured logging e metrics - Phase 10
 
 ---
 
@@ -407,7 +484,7 @@ _Nessun blocker al momento._
 | 2026-02-19 | Async-only per LLM client | Coerenza con FastAPI async; migliore scalabilità |
 | 2026-02-19 | Prompts: Jinja2 templates in config/prompts/ | Manutenibilità, versionamento, sperimentazione facilitata |
 | 2026-02-19 | Truncation: sentence boundary | Preserva contesto semantico vs hard truncation |
-| 2026-02-19 | Jinja2 dependency added | Per prompt templating (3.1.0+)
+| 2026-02-19 | Jinja2 dependency added | Per prompt templating (3.1.0+) |
 | 2026-02-19 | Validation: 4-stage architecture | Separazione responsabilità: parse → schema → business → quality |
 | 2026-02-19 | Validation: Stages 1-3 hard fail, Stage 4 warnings | Hard fail su errori strutturali/semantici; warnings su quality issues |
 | 2026-02-19 | Validation: jsonschema library per Stage 2 | Standard, ben testato, caching per performance |
@@ -415,6 +492,14 @@ _Nessun blocker al momento._
 | 2026-02-19 | Validation: ValidationContext pattern | Clean dependency injection per settings/warnings accumulation |
 | 2026-02-19 | Validation: Structured exceptions con details | Include field_path, invalid_value, expected_values per debugging/metrics |
 | 2026-02-19 | Validation: Case-insensitive matching | Evidence/keyword presence più robusto (quote text normalization) |
+| 2026-02-19 | Retry: Strategy Pattern implementation | Extensible, testable, SOLID principles; clean separation of concerns |
+| 2026-02-19 | Retry: 4-level escalation policy | Standard → shrink → fallback → DLQ provides progressive recovery |
+| 2026-02-19 | Retry: Frozen RetryMetadata dataclass | Immutable audit trail prevents accidental modification |
+| 2026-02-19 | Retry: Temporary DLQ logging (Phase 4) | Structured logging sufficient until Phase 7 adds persistence |
+| 2026-02-19 | Retry: No request mutation | Create new instances for shrink mode preserves immutability/audit |
+| 2026-02-19 | Retry: Async sleep for backoff | Non-blocking (asyncio.sleep) consistent with FastAPI async runtime |
+| 2026-02-19 | Retry: Max retries per strategy | Standard=3, Shrink=2, Fallback=len(models) are reasonable defaults |
+| 2026-02-19 | Retry: PromptBuilder shrink_mode integration | Leverage existing parameter avoids duplication |
 
 ---
 
