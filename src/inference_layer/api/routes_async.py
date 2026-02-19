@@ -12,7 +12,7 @@ from uuid import uuid4
 from celery.result import AsyncResult
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from inference_layer.api.dependencies import get_settings
+from inference_layer.api.dependencies import get_async_repository, get_settings
 from inference_layer.api.models import (
     BatchSubmitRequest,
     BatchSubmitResponse,
@@ -21,6 +21,7 @@ from inference_layer.api.models import (
 from inference_layer.config import Settings
 from inference_layer.models.input_models import TriageRequest
 from inference_layer.models.output_models import TriageResult
+from inference_layer.persistence.repository import AsyncTriageRepository
 from inference_layer.tasks.celery_app import celery_app
 from inference_layer.tasks.triage_tasks import triage_email_task
 
@@ -93,7 +94,7 @@ async def submit_batch(
     # Submit tasks
     task_ids = []
     for req_dict in validated_requests:
-        result = triage_email_task.delay(req_dict)
+        result = triage_email_task.delay(req_dict)  # type: ignore[attr-defined]
         task_ids.append(result.id)
     
     # Generate batch ID
@@ -136,6 +137,7 @@ async def submit_batch(
 )
 async def get_task_status(
     task_id: str,
+    repository: AsyncTriageRepository = Depends(get_async_repository),
 ) -> TaskStatusResponse:
     """
     Get status of a task.
@@ -160,7 +162,7 @@ async def get_task_status(
     
     # Build response based on state
     if async_result.state == "SUCCESS":
-        # Parse result
+        # Parse result from Celery
         result_dict = async_result.result
         result = TriageResult.model_validate(result_dict)
         
@@ -174,6 +176,22 @@ async def get_task_status(
             status="SUCCESS",
             result=result,
         )
+    
+    # Check if result is in Redis (Celery result might be expired)
+    if async_result.state == "PENDING" and async_result.info is None:
+        # Result might be expired from Celery but still in Redis
+        result = await repository.get_result_by_task_id(task_id)
+        if result:
+            logger.info(
+                "Task status checked (SUCCESS from Redis fallback)",
+                extra={"task_id": task_id},
+            )
+            return TaskStatusResponse(
+                task_id=task_id,
+                status="SUCCESS",
+                result=result,
+            )
+        # Otherwise task truly not found - will fall through to general PENDING handler below
     
     elif async_result.state == "FAILURE":
         # Get error info
@@ -247,6 +265,7 @@ async def get_task_status(
 )
 async def get_task_result(
     task_id: str,
+    repository: AsyncTriageRepository = Depends(get_async_repository),
 ) -> TriageResult:
     """
     Get result of a completed task.
@@ -262,6 +281,16 @@ async def get_task_result(
     
     # Check if task exists
     if async_result.state == "PENDING" and not async_result.info:
+        # Check Redis fallback before declaring not found
+        result = await repository.get_result_by_task_id(task_id)
+        if result:
+            logger.info(
+                "Task result retrieved from Redis (Celery result expired)",
+                extra={"task_id": task_id},
+            )
+            return result
+        
+        # Task not found
         logger.warning("Task not found", extra={"task_id": task_id})
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

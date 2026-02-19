@@ -11,11 +11,13 @@ from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
+from inference_layer.config import settings
 from inference_layer.llm.exceptions import (
     LLMConnectionError,
-    LLMError,
     LLMTimeoutError,
 )
+from inference_layer.persistence.redis_client import RedisClient
+from inference_layer.persistence.repository import TriageRepository
 from inference_layer.retry.exceptions import RetryExhausted
 from inference_layer.validation.exceptions import (
     BusinessRuleViolation,
@@ -64,7 +66,7 @@ async def retry_exhausted_handler(request: Request, exc: RetryExhausted) -> JSON
     Handle retry exhausted errors (DLQ routing).
     
     Maps to 503 Service Unavailable (temporary failure).
-    Logs complete metadata for DLQ processing.
+    Persists to DLQ in Redis for manual review.
     
     Args:
         request: FastAPI request
@@ -73,6 +75,18 @@ async def retry_exhausted_handler(request: Request, exc: RetryExhausted) -> JSON
     Returns:
         JSON error response
     """
+    # Persist to DLQ in Redis
+    try:
+        redis_client = RedisClient.get_sync_client(settings)
+        repository = TriageRepository(redis_client, settings)
+        repository.save_to_dlq(exc)
+    except Exception as dlq_error:
+        logger.error(
+            "Failed to save to DLQ",
+            extra={"error": str(dlq_error)},
+            exc_info=True,
+        )
+    
     # Log to DLQ with complete context
     logger.error(
         "DLQ: Retry exhausted - manual review required",

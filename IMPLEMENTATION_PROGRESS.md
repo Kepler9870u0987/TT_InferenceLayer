@@ -332,24 +332,62 @@
 
 ---
 
-## Fase 5 — API FastAPI (2–3 giorni)
+## Fase 5 — API FastAPI (2–3 giorni) ✅ COMPLETED
 
 ### Tasks
 
-- [ ] 5.1 — Endpoint sincrono POST /triage
-- [ ] 5.2 — Endpoint asincrono POST /triage/batch
-- [ ] 5.3 — Endpoint GET /triage/task/{task_id}
-- [ ] 5.4 — Health check GET /health
-- [ ] 5.5 — Schema endpoint GET /schema
-- [ ] 5.6 — Celery tasks (triage_email, triage_batch)
-- [ ] 5.7 — Celery app configuration
+- [x] 5.1 — Endpoint sincrono POST /triage
+- [x] 5.2 — Endpoint asincrono POST /triage/batch
+- [x] 5.3 — Endpoint GET /triage/task/{task_id}
+- [x] 5.4 — Health check GET /health
+- [x] 5.5 — Schema endpoint GET /schema
+- [x] 5.6 — Celery tasks (triage_email, triage_batch)
+- [x] 5.7 — Celery app configuration
+- [x] 5.8 — Dependency injection (dependencies.py)
+- [x] 5.9 — API response models (models.py)
+- [x] 5.10 — Exception handlers (error_handlers.py)
+- [x] 5.11 — Prometheus metrics instrumentation
+- [x] 5.12 — Unit tests (dependencies, models)
+- [x] 5.13 — Integration tests (TestClient, health checks)
 
 ### Files Created
-- N/A
+- `src/inference_layer/api/dependencies.py` - FastAPI dependency injection with singletons
+- `src/inference_layer/api/models.py` - API-specific request/response schemas
+- `src/inference_layer/api/error_handlers.py` - Exception handlers for structured errors
+- `src/inference_layer/api/routes_sync.py` - Synchronous endpoints (triage, health, schema, version)
+- `src/inference_layer/api/routes_async.py` - Asynchronous endpoints (batch, task status, task result)
+- `src/inference_layer/tasks/celery_app.py` - Celery application configuration
+- `src/inference_layer/tasks/triage_tasks.py` - Celery task definitions (triage_email_task, triage_batch_task)
+- `tests/unit/api/test_dependencies.py` - Unit tests for dependency injection
+- `tests/unit/api/test_models.py` - Unit tests for API models
+- `tests/integration/api/test_api_integration.py` - Integration tests with TestClient
 
 ### Notes
-- Sincrono per singola email (demo/test rapidi)
-- Asincrono per batch (produzione)
+- **Synchronous Endpoints**: `/triage` (single email), `/health` (service checks), `/schema` (JSON Schema), `/version` (pipeline info)
+- **Asynchronous Endpoints**: `/triage/batch` (submit batch), `/triage/task/{id}` (check status), `/triage/result/{id}` (get result)
+- **Dependency Injection**: Singleton pattern with `@lru_cache()` for expensive resources (LLM client, prompt builder, validation pipeline)
+- **Celery Configuration**: JSON serialization, task time limit 300s, worker concurrency 4, result expires 3600s
+- **Celery Tasks**: Use `TriageTask` base class for resource initialization per worker, `asyncio.run()` for async retry engine
+- **Error Handlers**: Structured JSON responses for all exceptions (ValidationError → 422, RetryExhausted → 503 + DLQ log)
+- **Prometheus Metrics**: Auto-instrumentation via `prometheus-fastapi-instrumentator`, custom metrics for validation failures and retries
+- **Testing**: Unit tests for all API components, integration tests with TestClient (no running services needed)
+- **Persistence**: Phase 5 uses Redis result backend only (no PostgreSQL until Phase 7)
+
+### Architecture Highlights
+- **FastAPI app**: Routes, middleware, exception handlers, Prometheus instrumentation
+- **Dependency injection**: Singleton components shared across requests (performance optimization)
+- **Celery workers**: Separate process for async tasks, resource initialization per worker
+- **Error mapping**: Domain exceptions → HTTP status codes with structured details
+- **Health checks**: Real service checks (Ollama, Redis) with degraded/unhealthy states
+
+### Decisions Made
+- **Persistence strategy**: Use Redis result backend for Phase 5 (PostgreSQL deferred to Phase 7)
+- **Task serialization**: JSON only (Pydantic `model_dump(mode='json')`) for security and debuggability
+- **Async in Celery**: Use `asyncio.run()` to call async retry engine from sync Celery tasks
+- **Batch size limit**: 100 requests per batch (soft limit to prevent worker overload)
+- **DELETE endpoint**: Deferred (Celery task revocation complex, not critical for MVP)
+- **Error handling**: All exceptions logged with structured context (request_uid, metadata)
+- **Health check depth**: Basic checks only (Ollama /api/tags, Redis ping)
 
 ---
 
@@ -465,9 +503,18 @@ _Nessun blocker al momento._
 17. ✅ Implementare retry strategies (StandardRetryStrategy, ShrinkRetryStrategy, FallbackModelStrategy)
 18. ✅ Implementare retry metadata tracking e exceptions
 19. ✅ Unit & integration tests per retry engine (50+ test cases)
-20. 🔄 **CURRENT**: Implementare API FastAPI (endpoints sincroni/asincroni) - Phase 5
-21. 🔜 Implementare persistence layer (PostgreSQL + JSONB + DLQ) - Phase 7
-22. 🔜 Implementare structured logging e metrics - Phase 10
+20. ✅ **COMPLETED**: Implementare API FastAPI (endpoints sincroni/asincroni) - Phase 5
+21. ✅ Implementare Celery configuration e tasks (triage_email, triage_batch)
+22. ✅ Implementare dependency injection e error handlers
+23. ✅ Implementare Prometheus metrics instrumentation
+24. ✅ Unit & integration tests per API (dependencies, models, endpoints)
+25. ✅ Aggiornare documentazione (README API examples, IMPLEMENTATION_PROGRESS)
+26. 🔄 **NEXT**: Decidere se implementare Phase 6 (PII redaction avanzata) o Phase 7 (PostgreSQL persistence)
+27. 🔜 Implementare persistence layer (PostgreSQL + JSONB + DLQ) - Phase 7
+28. 🔜 Implementare structured logging e metrics avanzate - Phase 10
+
+**Note**: Phase 5 completata con successo. Sistema pronto per demo/testing end-to-end con Ollama + Redis. 
+PostgreSQL persistence (Phase 7) è il prossimo step critico per produzione. Phase 6 (PII redaction) può essere implementata in parallelo se necessario.
 
 ---
 
@@ -500,6 +547,15 @@ _Nessun blocker al momento._
 | 2026-02-19 | Retry: Async sleep for backoff | Non-blocking (asyncio.sleep) consistent with FastAPI async runtime |
 | 2026-02-19 | Retry: Max retries per strategy | Standard=3, Shrink=2, Fallback=len(models) are reasonable defaults |
 | 2026-02-19 | Retry: PromptBuilder shrink_mode integration | Leverage existing parameter avoids duplication |
+| 2026-02-19 | API: Dependency injection with @lru_cache() | Singleton pattern for expensive resources (LLM client, builders) improves performance |
+| 2026-02-19 | API: Celery with JSON serialization | Pydantic model_dump(mode='json') for security + debuggability vs pickle |
+| 2026-02-19 | API: asyncio.run() in Celery tasks | Call async retry engine from sync Celery tasks (simpler than sync wrapper) |
+| 2026-02-19 | API: Redis result backend for Phase 5 | PostgreSQL persistence deferred to Phase 7 (MVP uses Redis temporary storage) |
+| 2026-02-19 | API: Batch size limit 100 | Soft limit prevents worker overload (configurable if needed) |
+| 2026-02-19 | API: Prometheus auto-instrumentation | prometheus-fastapi-instrumentator provides baseline metrics + custom counters |
+| 2026-02-19 | API: Structured error responses | All exceptions mapped to HTTP codes with details dict (field_path, invalid_value) |
+| 2026-02-19 | API: Health checks with service status | Real checks (Ollama /api/tags, Redis ping) vs stub responses |
+| 2026-02-19 | API: TestClient integration tests | No running services needed for basic tests (mock dependencies) |
 
 ---
 

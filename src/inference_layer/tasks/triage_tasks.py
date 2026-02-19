@@ -19,6 +19,8 @@ from inference_layer.llm.prompt_builder import PromptBuilder
 from inference_layer.models.input_models import TriageRequest
 from inference_layer.models.output_models import TriageResult
 from inference_layer.models.pipeline_version import PipelineVersion
+from inference_layer.persistence.redis_client import RedisClient
+from inference_layer.persistence.repository import TriageRepository
 from inference_layer.retry.engine import RetryEngine
 from inference_layer.retry.exceptions import RetryExhausted
 from inference_layer.tasks.celery_app import celery_app
@@ -39,6 +41,7 @@ class TriageTask(Task):
     _prompt_builder = None
     _validation_pipeline = None
     _retry_engine = None
+    _repository = None
     
     @property
     def llm_client(self):
@@ -58,11 +61,11 @@ class TriageTask(Task):
             self._prompt_builder = PromptBuilder(
                 templates_dir=Path(settings.PROMPT_TEMPLATES_DIR),
                 schema_path=Path(settings.JSON_SCHEMA_PATH),
-                top_n_candidates=settings.TOP_N_CANDIDATES,
-                body_limit=settings.BODY_LIMIT,
-                shrink_top_n=settings.SHRINK_TOP_N,
+                body_truncation_limit=settings.BODY_TRUNCATION_LIMIT,
                 shrink_body_limit=settings.SHRINK_BODY_LIMIT,
-                enable_pii_redaction=settings.ENABLE_PII_REDACTION,
+                candidate_top_n=settings.CANDIDATE_TOP_N,
+                shrink_top_n=settings.SHRINK_TOP_N,
+                redact_for_llm=settings.REDACT_FOR_LLM,
             )
         return self._prompt_builder
     
@@ -84,6 +87,14 @@ class TriageTask(Task):
                 settings=settings,
             )
         return self._retry_engine
+    
+    @property
+    def repository(self):
+        """Get or initialize repository (singleton per worker)."""
+        if self._repository is None:
+            redis_client = RedisClient.get_sync_client(settings)
+            self._repository = TriageRepository(redis_client, settings)
+        return self._repository
 
 
 @celery_app.task(
@@ -131,16 +142,14 @@ def triage_email_task(self: TriageTask, request_dict: dict) -> dict:
         
         # Build pipeline version
         pipeline_version = PipelineVersion(
+            dictionary_version=request.dictionary_version,
+            model_version=settings.OLLAMA_MODEL,
+            schema_version=settings.SCHEMA_VERSION,
+            inference_layer_version="0.1.0",
             parser_version=request.email.pipeline_version.parser_version,
             canonicalization_version=request.email.pipeline_version.canonicalization_version,
             ner_model_version=request.email.pipeline_version.ner_model_version,
             pii_redaction_version=request.email.pipeline_version.pii_redaction_version,
-            dictionary_version=str(request.dictionary_version),
-            schema_version=settings.SCHEMA_VERSION,
-            model_name=settings.MODEL_NAME,
-            temperature=settings.TEMPERATURE,
-            top_n_candidates=settings.TOP_N_CANDIDATES,
-            body_limit=settings.BODY_LIMIT,
         )
         
         # Build result
@@ -152,7 +161,7 @@ def triage_email_task(self: TriageTask, request_dict: dict) -> dict:
             validation_warnings=warnings,
             retries_used=retry_metadata.total_attempts - 1,
             processing_duration_ms=duration_ms,
-            created_at=datetime.utcnow(),
+            created_at=datetime.utcnow().isoformat(),
         )
         
         logger.info(
@@ -165,11 +174,16 @@ def triage_email_task(self: TriageTask, request_dict: dict) -> dict:
             },
         )
         
+        # Persist result to Redis with task_id mapping
+        self.repository.save_result(result, task_id=self.request.id)
+        
         # Return as dict (JSON-serializable)
         return result.model_dump(mode="json")
     
     except RetryExhausted as exc:
-        # Log to DLQ (no DB persistence in Phase 5)
+        # Save to DLQ in Redis
+        self.repository.save_to_dlq(exc)
+        
         logger.error(
             "DLQ: Retry exhausted in Celery task",
             extra={
@@ -221,7 +235,7 @@ def triage_batch_task(requests_dicts: list[dict]) -> dict:
     # Submit individual tasks
     task_ids = []
     for req_dict in requests_dicts:
-        result = triage_email_task.delay(req_dict)
+        result = triage_email_task.delay(req_dict)  # type: ignore[attr-defined]
         task_ids.append(result.id)
     
     logger.info(

@@ -17,6 +17,7 @@ from prometheus_client import Counter, Histogram
 from redis import Redis
 
 from inference_layer.api.dependencies import (
+    get_async_repository,
     get_retry_engine,
     get_settings,
 )
@@ -29,6 +30,7 @@ from inference_layer.config import Settings
 from inference_layer.models.input_models import TriageRequest
 from inference_layer.models.output_models import TriageResult
 from inference_layer.models.pipeline_version import PipelineVersion
+from inference_layer.persistence.repository import AsyncTriageRepository
 from inference_layer.retry.engine import RetryEngine
 
 logger = logging.getLogger(__name__)
@@ -73,6 +75,7 @@ async def triage_email(
     request: TriageRequest,
     retry_engine: RetryEngine = Depends(get_retry_engine),
     settings: Settings = Depends(get_settings),
+    repository: AsyncTriageRepository = Depends(get_async_repository),
 ) -> TriageResponse:
     """
     Triage a single email synchronously.
@@ -102,16 +105,14 @@ async def triage_email(
         
         # Build pipeline version for audit trail
         pipeline_version = PipelineVersion(
+            dictionary_version=request.dictionary_version,
+            model_version=settings.OLLAMA_MODEL,
+            schema_version=settings.SCHEMA_VERSION,
+            inference_layer_version="0.1.0",
             parser_version=request.email.pipeline_version.parser_version,
             canonicalization_version=request.email.pipeline_version.canonicalization_version,
             ner_model_version=request.email.pipeline_version.ner_model_version,
             pii_redaction_version=request.email.pipeline_version.pii_redaction_version,
-            dictionary_version=str(request.dictionary_version),
-            schema_version=settings.SCHEMA_VERSION,
-            model_name=settings.MODEL_NAME,
-            temperature=settings.TEMPERATURE,
-            top_n_candidates=settings.TOP_N_CANDIDATES,
-            body_limit=settings.BODY_LIMIT,
         )
         
         # Build result
@@ -123,7 +124,7 @@ async def triage_email(
             validation_warnings=warnings,
             retries_used=retry_metadata.total_attempts - 1,  # First attempt is not a retry
             processing_duration_ms=duration_ms,
-            created_at=datetime.utcnow(),
+            created_at=datetime.utcnow().isoformat(),
         )
         
         logger.info(
@@ -136,6 +137,9 @@ async def triage_email(
                 "topics_count": len(validated_response.topics),
             },
         )
+        
+        # Persist result to Redis
+        await repository.save_result(result)
         
         # Update metrics
         triage_requests_total.labels(endpoint="triage", status="success").inc()
@@ -166,7 +170,6 @@ async def triage_email(
 
 @router.get(
     "/health",
-    response_model=HealthResponse,
     summary="Service health check",
     description="""
     Check the health of the inference layer and its dependencies.
@@ -183,7 +186,7 @@ async def triage_email(
 )
 async def health_check(
     settings: Settings = Depends(get_settings),
-) -> HealthResponse:
+):
     """
     Check health of all services.
     
@@ -326,7 +329,7 @@ async def get_version(
     """
     return VersionResponse(
         inference_layer_version="0.1.0",
-        model_name=settings.MODEL_NAME,
+        model_name=settings.OLLAMA_MODEL,
         dictionary_version=1,  # TODO: Make configurable
         schema_version=settings.SCHEMA_VERSION,
         pipeline_config={
@@ -334,8 +337,8 @@ async def get_version(
             "canonicalization": "1.0",
             "ner_model": "1.0",
             "pii_redaction": "1.0",
-            "temperature": str(settings.TEMPERATURE),
-            "top_n_candidates": str(settings.TOP_N_CANDIDATES),
-            "body_limit": str(settings.BODY_LIMIT),
+            "temperature": str(settings.LLM_TEMPERATURE),
+            "candidate_top_n": str(settings.CANDIDATE_TOP_N),
+            "body_truncation_limit": str(settings.BODY_TRUNCATION_LIMIT),
         },
     )

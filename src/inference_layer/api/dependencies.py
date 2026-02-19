@@ -14,6 +14,8 @@ from inference_layer.config import Settings, settings
 from inference_layer.llm.base_client import BaseLLMClient
 from inference_layer.llm.ollama_client import OllamaClient
 from inference_layer.llm.prompt_builder import PromptBuilder
+from inference_layer.persistence.redis_client import RedisClient
+from inference_layer.persistence.repository import AsyncTriageRepository, TriageRepository
 from inference_layer.retry.engine import RetryEngine
 from inference_layer.validation.pipeline import ValidationPipeline
 
@@ -66,11 +68,11 @@ def get_prompt_builder(settings: Settings = Depends(get_settings)) -> PromptBuil
     return PromptBuilder(
         templates_dir=Path(settings.PROMPT_TEMPLATES_DIR),
         schema_path=Path(settings.JSON_SCHEMA_PATH),
-        top_n_candidates=settings.TOP_N_CANDIDATES,
-        body_limit=settings.BODY_LIMIT,
-        shrink_top_n=settings.SHRINK_TOP_N,
+        body_truncation_limit=settings.BODY_TRUNCATION_LIMIT,
         shrink_body_limit=settings.SHRINK_BODY_LIMIT,
-        enable_pii_redaction=settings.ENABLE_PII_REDACTION,
+        candidate_top_n=settings.CANDIDATE_TOP_N,
+        shrink_top_n=settings.SHRINK_TOP_N,
+        redact_for_llm=settings.REDACT_FOR_LLM,
     )
 
 
@@ -117,3 +119,39 @@ def get_retry_engine(
         validation_pipeline=validation_pipeline,
         settings=settings,
     )
+
+
+def get_repository(
+    settings: Settings = Depends(get_settings),
+) -> TriageRepository:
+    """
+    Create triage repository with sync Redis client.
+    
+    Used in Celery tasks (synchronous context).
+    
+    Args:
+        settings: Application settings (injected)
+    
+    Returns:
+        TriageRepository instance
+    """
+    redis_client = RedisClient.get_sync_client(settings)
+    return TriageRepository(redis_client, settings)
+
+
+def get_async_repository(
+    settings: Settings = Depends(get_settings),
+) -> AsyncTriageRepository:
+    """
+    Create async triage repository.
+    
+    Used in FastAPI endpoints (async context).
+    
+    Args:
+        settings: Application settings (injected)
+    
+    Returns:
+        AsyncTriageRepository instance
+    """
+    redis_client = RedisClient.get_async_client(settings)
+    return AsyncTriageRepository(redis_client, settings)

@@ -58,10 +58,14 @@ class Settings(BaseSettings):
     
     # === Redis & Celery ===
     REDIS_URL: str = "redis://redis:6379/0"
+    REDIS_MAX_CONNECTIONS: int = 50  # Connection pool size
     CELERY_BROKER_URL: str = "redis://redis:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://redis:6379/1"
     CELERY_TASK_TIME_LIMIT: int = 300  # seconds
     CELERY_WORKER_CONCURRENCY: int = 4
+    
+    # === Persistence ===
+    RESULT_TTL_SECONDS: int = 86400  # 24 hours - how long to keep results in Redis
     
     # === Validation ===
     JSON_SCHEMA_PATH: str = "config/schema/email_triage_v2.json"
