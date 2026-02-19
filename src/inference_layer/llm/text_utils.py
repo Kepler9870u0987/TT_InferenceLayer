@@ -78,7 +78,7 @@ def adjust_pii_spans_after_truncation(
     with sentence boundary truncation).
     
     Args:
-        pii_entities: List of PII entity objects with 'span' attribute [start, end]
+        pii_entities: List of PII entity objects with span_start/span_end attributes
         truncated_length: Length of truncated text
         original_text: Original text before truncation (for validation)
         truncated_text: Text after truncation
@@ -97,13 +97,13 @@ def adjust_pii_spans_after_truncation(
     adjusted_entities = []
     
     for entity in pii_entities:
-        # Each entity has a 'span' attribute: [start, end]
-        # Using hasattr to be defensive (duck typing)
-        if not hasattr(entity, 'span') or not entity.span:
+        # Each entity has span_start and span_end attributes
+        if not hasattr(entity, 'span_start') or not hasattr(entity, 'span_end'):
             # Skip entities without valid span
             continue
             
-        start, end = entity.span
+        start = entity.span_start
+        end = entity.span_end
         
         # Entity completely before truncation point - keep as is
         if end <= truncated_length:
@@ -119,10 +119,10 @@ def adjust_pii_spans_after_truncation(
         # Adjust the entity's end to match truncation point
         # Note: We create a copy with adjusted span, not mutate original
         try:
-            # Try to create a copy with updated span
-            # This assumes entity is a Pydantic model or has model_copy
+            # Try to create a copy with updated span_end
+            # This assumes entity is a Pydantic model with model_copy
             if hasattr(entity, 'model_copy'):
-                adjusted_entity = entity.model_copy(update={'span': [start, truncated_length]})
+                adjusted_entity = entity.model_copy(update={'span_end': truncated_length})
                 adjusted_entities.append(adjusted_entity)
             else:
                 # Fallback: just include original (better than losing it)

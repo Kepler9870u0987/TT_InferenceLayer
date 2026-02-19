@@ -3,7 +3,7 @@
 > **Progetto**: Thread Classificator Mail - LLM Inference Layer  
 > **Data inizio**: 2026-02-19  
 > **Ultimo aggiornamento**: 2026-02-19  
-> **Stato generale**: 🟡 IN PROGRESS (Fase 0 completata, Fase 1 in corso)
+> **Stato generale**: 🟡 IN PROGRESS (Fase 0, 1, 2 completate - Fase 3 prossima)
 
 ---
 
@@ -11,9 +11,9 @@
 
 | Fase | Stato | Completamento | Note |
 |------|-------|---------------|------|
-| **Fase 0** — Scaffolding | � Completed | 100% | Structure, pyproject.toml, Docker, README done |
+| **Fase 0** — Scaffolding | 🟢 Completed | 100% | Structure, pyproject.toml, Docker, README done |
 | **Fase 1** — Data Models | 🟢 Completed | 100% | Enums, input/output models, JSON Schema, fixtures done |
-| **Fase 2** — LLM Client | 🟡 In Progress | 0% | - |
+| **Fase 2** — LLM Client | 🟢 Completed | 100% | BaseLLMClient, OllamaClient, PromptBuilder, PII redactor, tests done |
 | **Fase 3** — Validation | ⚪ Not Started | 0% | - |
 | **Fase 4** — Retry Engine | ⚪ Not Started | 0% | - |
 | **Fase 5** — API FastAPI | ⚪ Not Started | 0% | - |
@@ -97,19 +97,60 @@
 ## Fase 2 — LLM Client Abstraction + Prompt Builder (3–4 giorni)
 
 ### Tasks
+---
 
-- [ ] 2.1 — Abstract base client (BaseLLMClient ABC)
-- [ ] 2.2 — Ollama client implementation (structured output JSON)
-- [ ] 2.3 — SGLang client stub (per futuro)
-- [ ] 2.4 — Prompt builder (system + user payload, truncation, top-N)
+## Fase 2 — LLM Client Abstraction + Prompt Builder (3–4 giorni) ✅ COMPLETED
+
+### Tasks
+
+- [x] 2.1 — Abstract base client (BaseLLMClient ABC)
+- [x] 2.2 — Ollama client implementation (structured output JSON)
+- [x] 2.3 — SGLang client stub (per futuro)
+- [x] 2.4 — Prompt builder (system + user payload, truncation, top-N)
+- [x] 2.5 — Text utilities (truncation, PII span adjustment)
+- [x] 2.6 — PII redactor (on-the-fly redaction)
+- [x] 2.7 — LLM-specific models (LLMGenerationRequest, LLMGenerationResponse, LLMMetadata)
+- [x] 2.8 — LLM exceptions hierarchy
+- [x] 2.9 — Prompt templates (Jinja2)
+- [x] 2.10 — Unit tests (text_utils, redactor, prompt_builder)
+- [x] 2.11 — Integration tests (Ollama client)
+- [x] 2.12 — Update config with LLM settings
+- [x] 2.13 — Update module exports
 
 ### Files Created
-- N/A
+- `src/inference_layer/models/llm_models.py` (LLMGenerationRequest, LLMGenerationResponse, LLMMetadata)
+- `src/inference_layer/llm/exceptions.py` (LLM exception hierarchy)
+- `src/inference_layer/llm/base_client.py` (BaseLLMClient ABC)
+- `src/inference_layer/llm/ollama_client.py` (OllamaClient with httpx AsyncClient)
+- `src/inference_layer/llm/sglang_client.py` (SGLangClient stub)
+- `src/inference_layer/llm/text_utils.py` (truncate_at_sentence_boundary, adjust_pii_spans, count_tokens_approximate)
+- `src/inference_layer/llm/prompt_builder.py` (PromptBuilder with Jinja2)
+- `src/inference_layer/pii/redactor.py` (redact_pii_for_llm, redact_pii_in_candidates)
+- `config/prompts/system_prompt.txt` (System prompt template)
+- `config/prompts/user_prompt_template.txt` (User prompt template)
+- `tests/unit/llm/test_text_utils.py` (Unit tests for text utilities)
+- `tests/unit/llm/test_prompt_builder.py` (Unit tests for prompt builder)
+- `tests/unit/pii/test_redactor.py` (Unit tests for PII redaction)
+- `tests/integration/llm/test_ollama_integration.py` (Integration tests for Ollama)
 
 ### Notes
-- Model-agnostic abstraction
-- Prompt include: subject, from, body troncato (8000 char), candidate keywords top-N
-- PII redaction on-the-fly se REDACT_FOR_LLM=true
+- **Architecture**: Model-agnostic abstraction with BaseLLMClient ABC
+- **Ollama Client**: Async implementation using httpx.AsyncClient with connection pooling
+- **Structured Output**: JSON Schema passed via `format` parameter to Ollama
+- **Retry Logic**: Built-in connection-level retries (2 attempts) with exponential backoff
+- **Prompt Engineering**: Jinja2 templates for maintainability and version control
+- **Text Processing**: Sentence-boundary truncation (8000 chars normal, 4000 shrink)
+- **Candidate Selection**: Top-N filtering (100 normal, 50 shrink)
+- **PII Handling**: On-the-fly redaction (configurable, default OFF for self-hosted Ollama)
+- **Temperature**: 0.1 for determinism
+- **Testing**: Unit tests for all utilities, integration tests for Ollama (requires running server)
+
+### Decisions Made
+- **httpx over ollama package**: Direct HTTP control, no extra dependencies
+- **Async-only**: Consistent with FastAPI, better scalability
+- **Jinja2 templates**: Prompts as external files for maintainability
+- **Sentence boundary truncation**: Preserves semantic coherence over simple char truncation
+- **PII redaction configurable**: OFF by default (safe for self-hosted), ready for external LLMs
 
 ---
 
@@ -271,9 +312,13 @@ _Nessun blocker al momento._
 4. ✅ docker-compose.yml
 5. ✅ .env.example e README.md
 6. ✅ Implementare data models (enums, input models, output models)
-7. 🔄 **CURRENT**: Implementare LLM client abstraction (BaseLLMClient, OllamaClient)
-8. 🔜 Implementare prompt builder
-9. 🔜 Implementare validation pipeline (4 stages + verifiers)
+7. ✅ Implementare LLM client abstraction (BaseLLMClient, OllamaClient)
+8. ✅ Implementare prompt builder (Jinja2 templates, truncation, top-N)
+9. ✅ Implementare PII redactor e text utilities
+10. ✅ Unit & integration tests per Fase 2
+11. 🔄 **CURRENT**: Implementare validation pipeline (4 stages + verifiers)
+12. 🔜 Implementare retry engine con fallback strategies
+13. 🔜 Implementare API FastAPI (endpoints sincroni/asincroni)
 
 ---
 
@@ -286,6 +331,11 @@ _Nessun blocker al momento._
 | 2026-02-19 | API: sincrona + asincrona (Celery) | Sincrona per demo, asincrona per batch produzione |
 | 2026-02-19 | Stack: Python 3.11, FastAPI, Pydantic v2, Docker Compose | Coerente con design doc v2/v3 |
 | 2026-02-19 | Model: astrazione model-agnostic | Facilita switch Ollama → SGLang in futuro |
+| 2026-02-19 | LLM Client: httpx diretto (no ollama package) | Maggiore controllo, no dipendenze extra, facilita debugging |
+| 2026-02-19 | Async-only per LLM client | Coerenza con FastAPI async; migliore scalabilità |
+| 2026-02-19 | Prompts: Jinja2 templates in config/prompts/ | Manutenibilità, versionamento, sperimentazione facilitata |
+| 2026-02-19 | Truncation: sentence boundary | Preserva contesto semantico vs hard truncation |
+| 2026-02-19 | Jinja2 dependency added | Per prompt templating (3.1.0+)
 
 ---
 

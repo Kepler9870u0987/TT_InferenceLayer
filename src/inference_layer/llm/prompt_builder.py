@@ -145,7 +145,7 @@ class PromptBuilder:
             Tuple of (rendered_prompt, metadata_dict)
             metadata includes: truncation info, candidates count, redaction applied
         """
-        email = request.email_document
+        email = request.email
         
         # Determine limits based on mode
         body_limit = self.shrink_body_limit if shrink_mode else self.body_truncation_limit

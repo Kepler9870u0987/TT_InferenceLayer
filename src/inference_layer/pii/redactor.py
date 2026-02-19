@@ -63,7 +63,7 @@ def redact_pii_for_llm(
     # This preserves offsets as we replace text
     entities_sorted = sorted(
         pii_entities,
-        key=lambda e: e.span[0] if e.span and len(e.span) >= 2 else -1,
+        key=lambda e: e.span_start,
         reverse=True
     )
     
@@ -75,12 +75,9 @@ def redact_pii_for_llm(
         if entity.type not in redact_types:
             continue
         
-        # Validate span
-        if not entity.span or len(entity.span) < 2:
-            logger.warning("Invalid span for PII entity", entity_type=entity.type, span=entity.span)
-            continue
-        
-        start, end = entity.span
+        # Get span positions
+        start = entity.span_start
+        end = entity.span_end
         
         # Validate span bounds
         if start < 0 or end > len(redacted_text) or start >= end:
@@ -150,12 +147,12 @@ def redact_pii_in_candidates(
     # Build set of PII terms (lowercased for matching)
     pii_terms = set()
     for entity in pii_entities:
-        if entity.span and len(entity.span) >= 2:
-            start, end = entity.span
-            if 0 <= start < end <= len(body_text):
-                term = body_text[start:end].lower().strip()
-                if term:
-                    pii_terms.add(term)
+        start = entity.span_start
+        end = entity.span_end
+        if 0 <= start < end <= len(body_text):
+            term = body_text[start:end].lower().strip()
+            if term:
+                pii_terms.add(term)
     
     if not pii_terms:
         return candidates
