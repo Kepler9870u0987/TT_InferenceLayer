@@ -99,9 +99,9 @@ def create_mock_llm_response() -> LLMGenerationResponse:
         content='{"dictionaryversion": 1, "sentiment": {"value": "neutral", "confidence": 0.8}, "priority": {"value": "medium", "confidence": 0.7, "signals": []}, "topics": [{"labelid": "CONTRATTO", "confidence": 0.9, "keywordsintext": [{"candidateid": "hash_001", "lemma": "contratto", "count": 1}], "evidence": [{"quote": "contratto"}]}]}',
         model_version="test_model:1.0",
         finish_reason="stop",
+        usage_tokens=150,
         prompt_tokens=100,
         completion_tokens=50,
-        total_tokens=150,
         latency_ms=500,
     )
 
@@ -131,6 +131,18 @@ def create_mock_validated_response() -> EmailTriageResponse:
             )
         ],
     )
+
+
+def create_mock_prompt_builder() -> MagicMock:
+    """Create a properly configured mock PromptBuilder."""
+    mock_builder = MagicMock(spec=PromptBuilder)
+    mock_builder.build_system_prompt.return_value = "System prompt"
+    mock_builder.build_user_prompt.return_value = ("User prompt", {"candidates_count": 2})
+    mock_builder.default_temperature = 0.1
+    mock_builder.default_max_tokens = 2048
+    mock_builder.default_model = "test_model"
+    mock_builder.json_schema = {}
+    return mock_builder
 
 
 # ============================================================================

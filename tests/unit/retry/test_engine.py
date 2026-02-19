@@ -98,9 +98,9 @@ def create_mock_llm_response() -> LLMGenerationResponse:
         content='{"dictionaryversion": 1, "sentiment": {"value": "neutral", "confidence": 0.8}, "priority": {"value": "medium", "confidence": 0.7, "signals": []}, "topics": [{"labelid": "CONTRATTO", "confidence": 0.9, "keywordsintext": [{"candidateid": "hash_001", "lemma": "contratto", "count": 1}], "evidence": [{"quote": "contratto"}]}]}',
         model_version="test_model:1.0",
         finish_reason="stop",
+        usage_tokens=150,
         prompt_tokens=100,
         completion_tokens=50,
-        total_tokens=150,
         latency_ms=500,
     )
 
@@ -124,6 +124,17 @@ def create_mock_validated_response() -> EmailTriageResponse:
     )
 
 
+def create_mock_prompt_builder() -> MagicMock:
+    """Create a properly configured mock PromptBuilder."""
+    mock_builder = MagicMock(spec=PromptBuilder)
+    mock_builder.default_temperature = 0.1
+    mock_builder.default_max_tokens = 2048
+    mock_builder.default_model = "test_model"
+    mock_builder.body_truncation_limit = 8000
+    mock_builder.json_schema = {}
+    return mock_builder
+
+
 # ============================================================================
 # RetryEngine Initialization Tests
 # ============================================================================
@@ -136,7 +147,7 @@ def test_retry_engine_initialization():
     settings.FALLBACK_MODELS = ["model_a", "model_b"]
 
     mock_client = MagicMock(spec=BaseLLMClient)
-    mock_builder = MagicMock(spec=PromptBuilder)
+    mock_builder = create_mock_prompt_builder()
     mock_validator = MagicMock(spec=ValidationPipeline)
 
     engine = RetryEngine(mock_client, mock_builder, mock_validator, settings)
@@ -163,7 +174,12 @@ async def test_retry_engine_success_first_attempt():
     """Test RetryEngine succeeds on first attempt (standard strategy)."""
     settings = Settings()
     mock_client = AsyncMock(spec=BaseLLMClient)
-    mock_builder = MagicMock(spec=PromptBuilder)
+    mock_builder = create_mock_prompt_builder()
+    mock_builder.default_temperature = 0.1
+    mock_builder.default_max_tokens = 2048
+    mock_builder.default_model = "test_model"
+    mock_builder.body_truncation_limit = 8000
+    mock_builder.json_schema = {}
     mock_validator = AsyncMock(spec=ValidationPipeline)
 
     engine = RetryEngine(mock_client, mock_builder, mock_validator, settings)
@@ -197,7 +213,7 @@ async def test_retry_engine_success_second_attempt():
     """Test RetryEngine succeeds on second attempt after validation failure."""
     settings = Settings()
     mock_client = AsyncMock(spec=BaseLLMClient)
-    mock_builder = MagicMock(spec=PromptBuilder)
+    mock_builder = create_mock_prompt_builder()
     mock_validator = AsyncMock(spec=ValidationPipeline)
 
     engine = RetryEngine(mock_client, mock_builder, mock_validator, settings)
@@ -209,7 +225,7 @@ async def test_retry_engine_success_second_attempt():
         nonlocal call_count
         call_count += 1
         if call_count == 1:
-            raise JSONParseError("Invalid JSON", {"content_snippet": "bad json"})
+            raise JSONParseError("Invalid JSON", "bad json content")
         return (create_mock_validated_response(), create_mock_llm_response(), [])
 
     with patch.object(engine.strategies[0][1], "execute", new=mock_execute):
@@ -230,7 +246,7 @@ async def test_retry_engine_escalates_to_shrink():
     settings = Settings()
     settings.MAX_RETRIES = 2
     mock_client = AsyncMock(spec=BaseLLMClient)
-    mock_builder = MagicMock(spec=PromptBuilder)
+    mock_builder = create_mock_prompt_builder()
     mock_validator = AsyncMock(spec=ValidationPipeline)
 
     engine = RetryEngine(mock_client, mock_builder, mock_validator, settings)
@@ -264,7 +280,7 @@ async def test_retry_engine_escalates_to_fallback():
     settings.MAX_RETRIES = 2
     settings.FALLBACK_MODELS = ["fallback_model"]
     mock_client = AsyncMock(spec=BaseLLMClient)
-    mock_builder = MagicMock(spec=PromptBuilder)
+    mock_builder = create_mock_prompt_builder()
     mock_validator = AsyncMock(spec=ValidationPipeline)
 
     engine = RetryEngine(mock_client, mock_builder, mock_validator, settings)
@@ -304,7 +320,7 @@ async def test_retry_engine_exhausted_all_strategies():
     settings.MAX_RETRIES = 2
     settings.FALLBACK_MODELS = ["fallback_model"]
     mock_client = AsyncMock(spec=BaseLLMClient)
-    mock_builder = MagicMock(spec=PromptBuilder)
+    mock_builder = create_mock_prompt_builder()
     mock_validator = AsyncMock(spec=ValidationPipeline)
 
     engine = RetryEngine(mock_client, mock_builder, mock_validator, settings)
@@ -343,7 +359,7 @@ async def test_retry_engine_exhausted_metadata():
     settings.MAX_RETRIES = 1
     settings.FALLBACK_MODELS = []  # No fallback models
     mock_client = AsyncMock(spec=BaseLLMClient)
-    mock_builder = MagicMock(spec=PromptBuilder)
+    mock_builder = create_mock_prompt_builder()
     mock_validator = AsyncMock(spec=ValidationPipeline)
 
     engine = RetryEngine(mock_client, mock_builder, mock_validator, settings)
@@ -354,7 +370,7 @@ async def test_retry_engine_exhausted_metadata():
     async def standard_fail(*args, **kwargs):
         nonlocal standard_call_count
         standard_call_count += 1
-        raise JSONParseError(f"Parse error {standard_call_count}", {})
+        raise JSONParseError(f"Parse error {standard_call_count}", "bad content")
 
     async def shrink_fail(*args, **kwargs):
         raise SchemaValidationError("Schema error", {})
@@ -387,7 +403,7 @@ async def test_retry_engine_tracks_warnings():
     """Test RetryEngine preserves warnings from Stage 4."""
     settings = Settings()
     mock_client = AsyncMock(spec=BaseLLMClient)
-    mock_builder = MagicMock(spec=PromptBuilder)
+    mock_builder = create_mock_prompt_builder()
     mock_validator = AsyncMock(spec=ValidationPipeline)
 
     engine = RetryEngine(mock_client, mock_builder, mock_validator, settings)
@@ -420,7 +436,7 @@ async def test_retry_engine_tracks_latency():
     """Test RetryEngine tracks total latency across attempts."""
     settings = Settings()
     mock_client = AsyncMock(spec=BaseLLMClient)
-    mock_builder = MagicMock(spec=PromptBuilder)
+    mock_builder = create_mock_prompt_builder()
     mock_validator = AsyncMock(spec=ValidationPipeline)
 
     engine = RetryEngine(mock_client, mock_builder, mock_validator, settings)
@@ -449,7 +465,7 @@ async def test_retry_engine_tracks_attempt_number():
     """Test RetryEngine tracks correct attempt number in metadata."""
     settings = Settings()
     mock_client = AsyncMock(spec=BaseLLMClient)
-    mock_builder = MagicMock(spec=PromptBuilder)
+    mock_builder = create_mock_prompt_builder()
     mock_validator = AsyncMock(spec=ValidationPipeline)
 
     engine = RetryEngine(mock_client, mock_builder, mock_validator, settings)
@@ -461,7 +477,7 @@ async def test_retry_engine_tracks_attempt_number():
         nonlocal call_count
         call_count += 1
         if call_count < 3:
-            raise JSONParseError(f"Error {call_count}", {})
+            raise JSONParseError(f"Error {call_count}", "bad content")
         return (create_mock_validated_response(), create_mock_llm_response(), [])
 
     with patch.object(engine.strategies[0][1], "execute", new=mock_execute):
@@ -484,7 +500,7 @@ async def test_retry_engine_no_fallback_models():
     settings = Settings()
     settings.FALLBACK_MODELS = []
     mock_client = AsyncMock(spec=BaseLLMClient)
-    mock_builder = MagicMock(spec=PromptBuilder)
+    mock_builder = create_mock_prompt_builder()
     mock_validator = AsyncMock(spec=ValidationPipeline)
 
     engine = RetryEngine(mock_client, mock_builder, mock_validator, settings)
@@ -500,7 +516,7 @@ async def test_retry_engine_preserves_error_context():
     settings = Settings()
     settings.MAX_RETRIES = 1
     mock_client = AsyncMock(spec=BaseLLMClient)
-    mock_builder = MagicMock(spec=PromptBuilder)
+    mock_builder = create_mock_prompt_builder()
     mock_validator = AsyncMock(spec=ValidationPipeline)
 
     engine = RetryEngine(mock_client, mock_builder, mock_validator, settings)
