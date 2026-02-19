@@ -65,6 +65,7 @@ class Settings(BaseSettings):
     
     # === Validation ===
     JSON_SCHEMA_PATH: str = "config/schema/email_triage_v2.json"
+    PROMPT_TEMPLATES_DIR: str = "config/prompts"
     MIN_CONFIDENCE_WARNING_THRESHOLD: float = 0.2  # Warn if topic confidence < this
     ENABLE_EVIDENCE_PRESENCE_CHECK: bool = True
     ENABLE_KEYWORD_PRESENCE_CHECK: bool = True

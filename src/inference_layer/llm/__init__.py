@@ -1,8 +1,39 @@
 """
 LLM client abstraction and implementations.
 
-- base_client.py: Abstract base class (BaseLLMClient)
-- ollama_client.py: Ollama implementation with structured JSON output
-- sglang_client.py: SGLang stub for future production use
-- prompt_builder.py: System and user prompt construction with truncation/top-N
+Components:
+- BaseLLMClient: Abstract base class for LLM clients
+- OllamaClient: Implementation for Ollama inference server
+- SGLangClient: Stub for future SGLang implementation
+- PromptBuilder: Constructs prompts from TriageRequest
+- text_utils: Text processing utilities (truncation, etc.)
+- exceptions: LLM-specific exceptions
 """
+
+from inference_layer.llm.base_client import BaseLLMClient
+from inference_layer.llm.ollama_client import OllamaClient
+from inference_layer.llm.sglang_client import SGLangClient
+from inference_layer.llm.prompt_builder import PromptBuilder
+from inference_layer.llm.exceptions import (
+    LLMClientError,
+    LLMConnectionError,
+    LLMGenerationError,
+    LLMSchemaViolationError,
+    LLMRateLimitError,
+    LLMTimeoutError,
+    LLMModelNotAvailableError,
+)
+
+__all__ = [
+    "BaseLLMClient",
+    "OllamaClient",
+    "SGLangClient",
+    "PromptBuilder",
+    "LLMClientError",
+    "LLMConnectionError",
+    "LLMGenerationError",
+    "LLMSchemaViolationError",
+    "LLMRateLimitError",
+    "LLMTimeoutError",
+    "LLMModelNotAvailableError",
+]

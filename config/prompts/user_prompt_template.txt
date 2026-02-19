@@ -1,0 +1,74 @@
+DICTIONARY VERSION: {{ dictionary_version }}
+
+EMAIL TO ANALYZE:
+---
+Subject: {{ subject }}
+From: {{ from_addr }}
+
+{{ body }}
+---
+
+ALLOWED TOPICS (select 1-5):
+{% for topic in allowed_topics -%}
+- {{ topic }}
+{% endfor %}
+
+CANDIDATE KEYWORDS (select from these ONLY - reference by candidate_id):
+{% for candidate in candidate_keywords -%}
+- ID: {{ candidate.candidate_id }} | Term: "{{ candidate.term }}" | Lemma: "{{ candidate.lemma }}" | Count: {{ candidate.count }} | Score: {{ candidate.score }}
+{% endfor %}
+
+INSTRUCTIONS:
+
+1. **Topics**: Analyze the email and select 1-5 topics from the ALLOWED TOPICS list. For each topic:
+   - Assign a labelid (from allowed topics)
+   - Provide a confidence score (0.0-1.0)
+   - Select 1-15 relevant keywords from CANDIDATE KEYWORDS (using candidate_id)
+   - Provide 1-2 evidence quotes (max 200 chars each) from the email
+
+2. **Sentiment**: Classify as positive, neutral, or negative with confidence score.
+
+3. **Priority**: Classify as low, medium, high, or urgent with confidence score.
+   - Provide 1-6 signals explaining the priority (e.g., urgency markers, deadlines, tone).
+
+4. **Output**: Return ONLY a JSON object matching this structure (no additional text):
+```json
+{
+  "dictionaryversion": {{ dictionary_version }},
+  "sentiment": {
+    "value": "positive|neutral|negative",
+    "confidence": 0.0-1.0
+  },
+  "priority": {
+    "value": "low|medium|high|urgent",
+    "confidence": 0.0-1.0,
+    "signals": ["signal1", "signal2", ...]
+  },
+  "topics": [
+    {
+      "labelid": "TOPIC_FROM_ALLOWED_LIST",
+      "confidence": 0.0-1.0,
+      "keywordsintext": [
+        {
+          "candidateid": "ID_FROM_CANDIDATES",
+          "lemma": "keyword_lemma",
+          "count": 1
+        }
+      ],
+      "evidence": [
+        {
+          "quote": "exact quote from email (max 200 chars)"
+        }
+      ]
+    }
+  ]
+}
+```
+
+REMEMBER:
+- Use ONLY topics from the allowed list
+- Use ONLY keywords with candidate_id from the candidates list
+- Evidence quotes must be EXACT excerpts from the email
+- Return ONLY valid JSON, no explanations
+
+Now analyze the email and return the JSON classification.
