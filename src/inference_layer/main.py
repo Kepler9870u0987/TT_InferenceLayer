@@ -48,7 +48,7 @@ for exc_class, handler in EXCEPTION_HANDLERS.items():
 
 # Include routers
 app.include_router(sync_router, tags=["sync"])
-app.include_router(async_router, tags=["async"])
+app.include_router(async_router, prefix="/triage", tags=["async"])
 
 
 # Startup event

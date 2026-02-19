@@ -32,15 +32,12 @@ def get_settings() -> Settings:
 
 
 @lru_cache()
-def get_llm_client(settings: Settings = Depends(get_settings)) -> BaseLLMClient:
+def get_llm_client() -> BaseLLMClient:
     """
     Get singleton LLM client with connection pooling.
     
     Uses @lru_cache to ensure only one client instance is created.
     The client maintains an internal connection pool for efficiency.
-    
-    Args:
-        settings: Application settings (injected)
     
     Returns:
         OllamaClient instance
@@ -53,14 +50,11 @@ def get_llm_client(settings: Settings = Depends(get_settings)) -> BaseLLMClient:
 
 
 @lru_cache()
-def get_prompt_builder(settings: Settings = Depends(get_settings)) -> PromptBuilder:
+def get_prompt_builder() -> PromptBuilder:
     """
     Get singleton prompt builder.
     
     Loads Jinja2 templates once and reuses them across requests.
-    
-    Args:
-        settings: Application settings (injected)
     
     Returns:
         PromptBuilder instance
@@ -77,14 +71,11 @@ def get_prompt_builder(settings: Settings = Depends(get_settings)) -> PromptBuil
 
 
 @lru_cache()
-def get_validation_pipeline(settings: Settings = Depends(get_settings)) -> ValidationPipeline:
+def get_validation_pipeline() -> ValidationPipeline:
     """
     Get singleton validation pipeline.
     
     Loads JSON Schema once and reuses it across requests.
-    
-    Args:
-        settings: Application settings (injected)
     
     Returns:
         ValidationPipeline instance
