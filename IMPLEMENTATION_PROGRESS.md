@@ -3,7 +3,7 @@
 > **Progetto**: Thread Classificator Mail - LLM Inference Layer  
 > **Data inizio**: 2026-02-19  
 > **Ultimo aggiornamento**: 2026-02-19  
-> **Stato generale**: 🟡 IN PROGRESS (Fase 0, 1, 2, 3, 4, 5 completate - Fase 6 prossima)
+> **Stato generale**: 🟡 IN PROGRESS (Fase 0, 1, 2, 3, 4, 5, 7, 10 completate - Fase 6, 8, 9 rimanenti)
 
 ---
 
@@ -21,7 +21,7 @@
 | **Fase 7** — Persistenza | ✅ Completed | 100% | Redis-based persistence with DLQ |
 | **Fase 8** — Config & Docker | ⚪ Not Started | 0% | - |
 | **Fase 9** — Tests | ⚪ Not Started | 0% | - |
-| **Fase 10** — Logging & CI | ⚪ Not Started | 0% | - |
+| **Fase 10** — Logging & CI | 🟢 Completed | 100% | Structlog, Prometheus metrics, GitHub Actions CI, test fixtures |
 
 **Legenda**: 🟢 Completed | 🟡 In Progress | ⚪ Not Started | 🔴 Blocked
 
@@ -511,19 +511,161 @@
 
 ---
 
-## Fase 10 — Logging, Metriche, CI (2–3 giorni)
+## Fase 10 — Logging, Metriche, CI (2–3 giorni) ✅ COMPLETED
 
 ### Tasks
 
-- [ ] 10.1 — Structured logging con structlog
-- [ ] 10.2 — Metriche Prometheus custom
-- [ ] 10.3 — CI pipeline (lint, type check, tests, build)
+- [x] 10.1 — Structured logging con structlog (JSON production, console dev)
+- [x] 10.2 — Request tracing middleware (UUID request_id)
+- [x] 10.3 — Migrate 15+ modules da logging a structlog
+- [x] 10.4 — Metriche Prometheus custom (7 metriche operative)
+- [x] 10.5 — Instrumentare validation pipeline con metriche
+- [x] 10.6 — Instrumentare retry engine, LLM client, API con metriche
+- [x] 10.7 — Centralized test fixtures (conftest.py files)
+- [x] 10.8 — GitHub Actions CI pipeline (lint, test, build)
+- [x] 10.9 — Release workflow GitHub Actions
+- [x] 10.10 — Codecov configuration
+- [x] 10.11 — CONTRIBUTING.md (developer guidelines)
+- [x] 10.12 — Update README.md (CI badges, monitoring, contributing)
 
 ### Files Created
-- N/A
+
+**Logging Infrastructure**:
+- `src/inference_layer/logging_config.py` — Structlog configuration (JSON/console renderers)
+- `src/inference_layer/api/middleware.py` — RequestTracingMiddleware (request_id binding)
+
+**Monitoring**:
+- `src/inference_layer/monitoring/__init__.py` — Module exports
+- `src/inference_layer/monitoring/metrics.py` — Custom Prometheus metrics (7 metrics with documentation)
+
+**Test Infrastructure**:
+- `tests/conftest.py` — Shared fixtures (email, candidates, settings, factories)
+- `tests/unit/conftest.py` — Unit test mocks (Redis, Ollama, ValidationPipeline, etc.)
+- `tests/integration/conftest.py` — Service health checks (Ollama, Redis, skip fixtures)
+
+**CI/CD**:
+- `.github/workflows/ci.yml` — CI pipeline (lint, test-unit, test-integration, build)
+- `.github/workflows/release.yml` — Release automation (GitHub Release + Docker images)
+- `.codecov.yml` — Codecov configuration (85% target, flags: unit/integration)
+
+**Documentation**:
+- `CONTRIBUTING.md` — Developer guide (setup, code style, testing, CI, metrics)
+
+**Files Modified** (15+ modules migrated to structlog):
+- `src/inference_layer/config.py` — Added ENVIRONMENT setting
+- `src/inference_layer/main.py` — Initialize logging, add middleware
+- `src/inference_layer/validation/pipeline.py` — Migrated to structlog
+- `src/inference_layer/validation/stage1_json_parse.py` — Migrated + metrics
+- `src/inference_layer/validation/stage2_schema.py` — Migrated + metrics
+- `src/inference_layer/validation/stage3_business_rules.py` — Migrated + metrics
+- `src/inference_layer/validation/stage4_quality.py` — Migrated to structlog
+- `src/inference_layer/retry/engine.py` — Migrated to structlog
+- `src/inference_layer/retry/strategies.py` — Migrated + metrics
+- `src/inference_layer/llm/ollama_client.py` — Metrics instrumentation
+- `src/inference_layer/api/routes_sync.py` — Migrated + topic distribution metrics
+- `src/inference_layer/api/routes_async.py` — Migrated to structlog
+- `src/inference_layer/api/error_handlers.py` — Migrated + DLQ metrics
+- `src/inference_layer/persistence/repository.py` — Migrated to structlog
+- `src/inference_layer/persistence/redis_client.py` — Migrated to structlog
+- `src/inference_layer/tasks/triage_tasks.py` — Migrated to structlog
+- `README.md` — Added CI badges, updated monitoring/contributing sections
 
 ### Notes
-- Metriche chiave: validation_failures, retries, dlq_entries, unknown_topic_ratio
+
+**Structured Logging**:
+- **Configuration**: `structlog` with JSON renderer (production) and ConsoleRenderer (development)
+- **Environment-aware**: Switches renderer based on `ENVIRONMENT` setting (development/production)
+- **Request tracing**: `RequestTracingMiddleware` generates UUID `request_id` and binds to context
+- **Context propagation**: `request_id` appears in ALL logs for a request automatically
+- **Migration**: 15+ modules migrated from `logging.getLogger()` to `structlog.get_logger()`
+- **Third-party noise reduction**: httpx, httpcore, asyncio loggers set to WARNING
+
+**Custom Prometheus Metrics** (7 total):
+
+1. **`validation_failures_total`** (Counter) — Labels: stage (stage1-4), error_type
+   - Instrumented in: stage1_json_parse.py, stage2_schema.py, stage3_business_rules.py
+   - Alert threshold: rate > 15% of requests
+
+2. **`retries_total`** (Counter) — Labels: strategy (standard/shrink/fallback), success (true/false)
+   - Instrumented in: retry/strategies.py
+   - Alert threshold: retry rate > 30%
+
+3. **`dlq_entries_total`** (Counter) — Labels: reason (retry_exhausted, etc.)
+   - Instrumented in: api/error_handlers.py
+   - Alert threshold: any DLQ entry (requires manual review)
+
+4. **`topic_distribution_total`** (Counter) — Labels: topic (FATTURAZIONE, UNKNOWNTOPIC, etc.)
+   - Instrumented in: api/routes_sync.py
+   - Used for: Distribution analysis, drift detection
+
+5. **`unknown_topic_ratio`** (Gauge) — Ratio of UNKNOWNTOPIC to total topics
+   - Instrumented in: api/routes_sync.py
+   - Alert threshold: ratio > 0.4 (40% unknown)
+
+6. **`llm_latency_seconds`** (Histogram) — Labels: model, success; Buckets: 0.5-120s
+   - Instrumented in: llm/ollama_client.py
+   - Alert threshold: p95 > 60s
+
+7. **`llm_tokens_total`** (Counter) — Labels: model, token_type (prompt/completion)
+   - Instrumented in: llm/ollama_client.py
+   - Used for: Cost estimation, capacity planning
+
+**Test Fixtures**:
+- **Root conftest** (`tests/conftest.py`): Shared fixtures for all tests
+  - `test_settings`: Test-safe Settings instance
+  - `sample_email_doc`, `sample_candidates`: From JSON fixtures
+  - `create_test_email_doc`, `create_test_candidate`: Factory fixtures
+  - `pipeline_version`: Standard PipelineVersion for tests
+
+- **Unit conftest** (`tests/unit/conftest.py`): Mock objects
+  - `mock_redis`, `mock_async_redis`: Redis mocks (sync/async)
+  - `mock_ollama_client`: Mocked OllamaClient for unit tests
+  - `mock_validation_pipeline`, `mock_prompt_builder`, `mock_retry_engine`: Business logic mocks
+
+- **Integration conftest** (`tests/integration/conftest.py`): Service checks
+  - `check_ollama`, `check_redis`: Session-scoped fixtures that skip tests if services unavailable
+  - `real_ollama_client`, `real_redis_client`: Real client instances for integration tests
+  - `integration_settings`: Settings pointing to localhost services
+
+**GitHub Actions CI Pipeline** (`.github/workflows/ci.yml`):
+
+**Jobs**:
+1. **lint** (Ruff, Black, Mypy) — Python 3.11, runs on all pushes/PRs
+2. **test-unit** (pytest unit tests) — Services: Redis; Coverage uploaded to Codecov
+3. **test-integration** (pytest integration tests) — Services: Redis + Ollama (qwen2.5:7b); Only on PR/main
+4. **build** (Docker images) — Validates Dockerfile + Dockerfile.worker; Uses BuildKit cache
+5. **summary** — Aggregates job results and reports CI status
+
+**Features**:
+- Codecov integration with flags (unit/integration) and 85% coverage target
+- Ollama model caching (pulled once per workflow run)
+- HTML coverage report artifact (7 day retention)
+- Conditional integration tests (PR/main only, expensive)
+- Timeout protection (integration tests: 15 min)
+
+**Release Workflow** (`.github/workflows/release.yml`):
+- Triggers on version tags (`v*.*.*`)
+- Creates GitHub Release with auto-generated notes
+- Optional Docker image push to DockerHub/GHCR (if secrets configured)
+- Multi-platform builds (linux/amd64, linux/arm64)
+
+**Codecov Configuration** (`.codecov.yml`):
+- Project coverage target: 85% (threshold: 2%)
+- Patch coverage target: 80% (threshold: 5%)
+- Flags: `unit` (carryforward: true), `integration` (carryforward: false)
+- Ignore: tests/, migrations/, __pycache__
+
+### Decisions Made
+
+- **Structlog over standard logging**: Chose structlog for ALL modules (not mixed) for consistent structured context binding
+- **JSON logging in production**: Easy to parse by ELK/Loki/CloudWatch; console in dev for readability
+- **Request ID middleware**: Generate UUID `request_id` at entry point, bind to context, propagate to all logs
+- **GitHub Actions over GitLab CI**: Most common, good ecosystem, free for open source
+- **Codecov for coverage**: Free for open source, good PR integration, configurable thresholds
+- **Custom metrics priority**: Focus on operational alerts (validation, retry, DLQ, topics) over ML metrics
+- **Integration tests conditional**: Only run with Ollama on PR/main (expensive, slow); unit tests always run
+- **Conftest centralization**: Move fixtures from inline to conftest.py for reusability across test modules
+- **No Grafana dashboards in Phase 10**: Dashboards are P2 (nice-to-have); can add later as JSON exports
 
 ---
 

@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
 from inference_layer.config import settings
+from inference_layer.monitoring.metrics import dlq_entries_total
 from inference_layer.llm.exceptions import (
     LLMConnectionError,
     LLMTimeoutError,
@@ -80,6 +81,9 @@ async def retry_exhausted_handler(request: Request, exc: RetryExhausted) -> JSON
         redis_client = RedisClient.get_sync_client(settings)
         repository = TriageRepository(redis_client, settings)
         repository.save_to_dlq(exc)
+        
+        # Track DLQ entry
+        dlq_entries_total.labels(reason="retry_exhausted").inc()
     except Exception as dlq_error:
         logger.error(
             "Failed to save to DLQ",

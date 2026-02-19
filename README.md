@@ -1,5 +1,10 @@
 # LLM Inference Layer
 
+[![CI Pipeline](https://github.com/YOUR_ORG/TT_InferenceLayer/workflows/CI%20Pipeline/badge.svg)](https://github.com/YOUR_ORG/TT_InferenceLayer/actions)
+[![codecov](https://codecov.io/gh/YOUR_ORG/TT_InferenceLayer/branch/main/graph/badge.svg)](https://codecov.io/gh/YOUR_ORG/TT_InferenceLayer)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 > **Email triage and classification service with structured LLM outputs**
 
 Transforms canonicalized emails into structured, auditable output containing topics (multi-label), sentiment, priority, and anchored keywords with evidence. Part of the *Thread Classificator Mail* pipeline.
@@ -582,20 +587,52 @@ TT_InferenceLayer/
 
 ### Prometheus Metrics
 
-Exposed at `http://localhost:9090/metrics`:
+Exposed at `http://localhost:8000/metrics` (when `PROMETHEUS_ENABLED=True`):
 
-- `triage_requests_total`: Counter of triage requests
-- `triage_duration_seconds`: Histogram of processing time
-- `validation_failures_total{stage}`: Counter of validation failures by stage
-- `retries_total`: Counter of retry attempts
-- `dlq_entries_total`: Counter of Dead Letter Queue entries
-- `unknown_topic_ratio`: Gauge of UNKNOWN_TOPIC proportion
-- `llm_latency_seconds`: Histogram of LLM call latency
+**Metrics Exposed**:
+
+| Metric | Type | Description | Labels |
+|--------|------|-------------|--------|
+| `validation_failures_total` | Counter | Validation failures by stage/type | stage, error_type |
+| `retries_total` | Counter | Retry attempts by strategy/outcome | strategy, success |
+| `dlq_entries_total` | Counter | DLQ entries by reason | reason |
+| `topic_distribution_total` | Counter | Topic classifications | topic |
+| `unknown_topic_ratio` | Gauge | Ratio of UNKNOWNTOPIC to total | - |
+| `llm_latency_seconds` | Histogram | LLM generation latency | model, success |
+| `llm_tokens_total` | Counter | Token consumption | model, token_type |
+| `triage_requests_total` | Counter | Total triage requests | endpoint, status |
+| `triage_duration_seconds` | Histogram | Triage processing duration | endpoint |
+
+See [src/inference_layer/monitoring/metrics.py](src/inference_layer/monitoring/metrics.py) for full documentation and alert thresholds.
+
+### Structured Logging
+
+All modules use `structlog` for structured logging with JSON output in production:
+
+**Log Configuration**:
+- **Development**: Pretty console output with colors
+- **Production**: JSON output (parseable by ELK, Loki, CloudWatch)
+- **Request Tracing**: Every request gets a unique `request_id` (UUID) via `RequestTracingMiddleware`
+
+**Example log output (production)**:
+```json
+{"event": "Triage completed", "level": "info", "timestamp": "2026-02-19T10:30:45.123Z", "request_id": "550e8400-e29b-41d4-a716-446655440000", "request_uid": "email_123", "duration_ms": 1234, "warnings_count": 0}
+```
+
+Set `ENVIRONMENT=production` in `.env` to enable JSON logging.
 
 ### Grafana Dashboards
-(Optional, uncomment services in docker-compose.yml)
+
+(Optional, uncomment prometheus/grafana services in docker-compose.yml)
 
 Access Grafana at `http://localhost:3000` (admin/admin)
+
+Dashboards will show:
+- Validation error rate (alert if > 15%)
+- Retry rate (alert if > 30%)
+- DLQ entry rate (alert on any entry)
+- UNKNOWNTOPIC ratio (alert if > 40%)
+- LLM latency p95 (alert if > 60s)
 
 ---
 
@@ -652,10 +689,17 @@ docker-compose exec redis redis-cli ping
   - ✓ Unit tests (dependencies, models)
   - ✓ Integration tests (TestClient, health checks)
 - [ ] **Phase 6**: PII Redaction (on-the-fly for LLM, configurable)
-- [x] **Phase 7**: Persistence (Redis-based, DLQ storage, repository pattern)
+- [x] **Phase 7**: Persistence (Redis-based, DLQ storage, repository pattern) — **✓ COMPLETED**
 - [ ] **Phase 8**: Configuration & Docker (finalize Dockerfiles, healthchecks)
 - [ ] **Phase 9**: Tests (comprehensive unit + integration coverage ≥85%)
-- [ ] **Phase 10**: Logging, Metrics, CI (structured logging, Grafana dashboards, GitHub Actions)
+- [x] **Phase 10**: Logging, Metrics, CI — **✓ COMPLETED**
+  - ✓ Structured logging with structlog (JSON in production, console in dev)
+  - ✓ Request tracing middleware (unique request_id per request)
+  - ✓ Custom Prometheus metrics (validation, retry, DLQ, LLM, topics)
+  - ✓ Migrated 15+ modules to structlog
+  - ✓ GitHub Actions CI pipeline (lint, test, build, codecov)
+  - ✓ Centralized test fixtures (conftest.py files)
+  - ✓ CONTRIBUTING.md with developer guidelines
 
 See [IMPLEMENTATION_PROGRESS.md](IMPLEMENTATION_PROGRESS.md) for detailed tracker.
 
@@ -669,7 +713,33 @@ Proprietary - All rights reserved.
 
 ## 🤝 Contributing
 
-(Internal project - contributing guidelines TBD)
+We welcome contributions! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for:
+
+- **Development setup** (venv, dependencies, services)
+- **Code style** (Ruff, Black, Mypy)
+- **Testing** (pytest, coverage, markers)
+- **CI/CD pipeline** (GitHub Actions, release process)
+- **Metrics & monitoring** (Prometheus, structured logging)
+- **Pull request process** (branch strategy, commit messages, review checklist)
+
+### Quick Start for Contributors
+
+```bash
+# Install with dev dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest tests/unit -v
+
+# Lint & format
+ruff check src tests
+black src tests
+
+# Type check
+mypy src
+```
+
+**CI Status**: All PRs must pass lint, tests, and coverage checks. See workflow at [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
 ---
 

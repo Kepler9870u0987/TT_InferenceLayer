@@ -1,0 +1,41 @@
+# Codecov configuration
+# https://docs.codecov.com/docs/codecov-yaml
+
+coverage:
+  status:
+    project:
+      default:
+        target: 85%  # Minimum coverage target
+        threshold: 2%  # Allow 2% decrease without failing
+    patch:
+      default:
+        target: 80%  # New code should have 80%+ coverage
+        threshold: 5%
+
+  precision: 2  # 2 decimal places
+  round: down
+  range: "70...100"  # Red < 70%, green >= 100%
+
+ignore:
+  - "tests/**/*"
+  - "**/__pycache__/**/*"
+  - "**/migrations/**/*"
+  - "setup.py"
+  - "**/__main__.py"
+
+comment:
+  layout: "reach,diff,flags,files,footer"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+
+flags:
+  unit:
+    carryforward: true
+    paths:
+      - src/
+  integration:
+    carryforward: false
+    paths:
+      - src/

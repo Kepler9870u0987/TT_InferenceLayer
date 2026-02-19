@@ -18,6 +18,7 @@ import structlog
 from typing import Protocol
 
 from inference_layer.config import Settings
+from inference_layer.monitoring.metrics import retries_total
 from inference_layer.llm.base_client import BaseLLMClient
 from inference_layer.llm.exceptions import (
     LLMModelNotAvailableError,

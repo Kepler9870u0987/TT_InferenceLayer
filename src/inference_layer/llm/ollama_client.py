@@ -23,6 +23,7 @@ from inference_layer.llm.exceptions import (
     LLMModelNotAvailableError,
 )
 from inference_layer.models.llm_models import LLMGenerationRequest, LLMGenerationResponse
+from inference_layer.monitoring.metrics import llm_latency_seconds, llm_tokens_total
 
 
 logger = structlog.get_logger(__name__)
@@ -209,6 +210,20 @@ class OllamaClient(BaseLLMClient):
                     finish_reason=finish_reason,
                     attempt=attempt
                 )
+                
+                # Track metrics
+                llm_latency_seconds.labels(
+                    model=model_version, success="true"
+                ).observe(latency_ms / 1000.0)
+                
+                if prompt_tokens:
+                    llm_tokens_total.labels(
+                        model=model_version, token_type="prompt"
+                    ).inc(prompt_tokens)
+                if completion_tokens:
+                    llm_tokens_total.labels(
+                        model=model_version, token_type="completion"
+                    ).inc(completion_tokens)
                 
                 return LLMGenerationResponse(
                     content=content,

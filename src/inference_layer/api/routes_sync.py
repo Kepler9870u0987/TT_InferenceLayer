@@ -30,6 +30,7 @@ from inference_layer.config import Settings
 from inference_layer.models.input_models import TriageRequest
 from inference_layer.models.output_models import TriageResult
 from inference_layer.models.pipeline_version import PipelineVersion
+from inference_layer.monitoring.metrics import (\n    topic_distribution_total,\n    unknown_topic_ratio,\n)
 from inference_layer.persistence.repository import AsyncTriageRepository
 from inference_layer.retry.engine import RetryEngine
 
@@ -140,6 +141,19 @@ async def triage_email(
         
         # Persist result to Redis
         await repository.save_result(result)
+        
+        # Update topic distribution metrics
+        for topic_result in validated_response.topics:
+            topic_distribution_total.labels(topic=topic_result.labelid).inc()
+        
+        # Calculate and update UNKNOWNTOPIC ratio
+        # Note: This is a simple calculation; for production, use a sliding window
+        topic_labels = [t.labelid for t in validated_response.topics]
+        unknown_count = sum(1 for label in topic_labels if label == "UNKNOWNTOPIC")
+        total_count = len(topic_labels)
+        if total_count > 0:
+            ratio = unknown_count / total_count
+            unknown_topic_ratio.set(ratio)
         
         # Update metrics
         triage_requests_total.labels(endpoint="triage", status="success").inc()
