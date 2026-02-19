@@ -146,56 +146,303 @@ docker-compose exec api pytest tests/ -v --cov --cov-report=html
 
 ## 📖 API Usage
 
-### Synchronous Triage (Single Email)
+### Service Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Service info |
+| `/health` | GET | Health check (all services) |
+| `/schema` | GET | JSON Schema for LLM output |
+| `/version` | GET | Pipeline version info |
+| `/triage` | POST | Synchronous triage (single email) |
+| `/triage/batch` | POST | Submit batch (async) |
+| `/triage/task/{task_id}` | GET | Check task status |
+| `/triage/result/{task_id}` | GET | Get task result |
+| `/docs` | GET | Swagger UI |
+| `/metrics` | GET | Prometheus metrics |
+
+### 1. Health Check
 
 ```bash
-curl -X POST http://localhost:8000/triage \
-  -H "Content-Type: application/json" \
-  -d @tests/fixtures/sample_request.json
+curl http://localhost:8000/health
 ```
 
 **Response**:
 ```json
 {
-  "dictionaryversion": 1,
-  "sentiment": {"value": "neutral", "confidence": 0.85},
-  "priority": {"value": "medium", "confidence": 0.72, "signals": ["contratto", "richiesta"]},
-  "topics": [
-    {
-      "labelid": "CONTRATTO",
-      "confidence": 0.91,
-      "keywordsintext": [
-        {"candidateid": "abc123", "lemma": "contratto", "count": 2}
-      ],
-      "evidence": [
-        {"quote": "Richiesta informazioni contratto n. 2024/ABC/123"}
-      ]
-    }
-  ]
+  "status": "healthy",
+  "version": "0.1.0",
+  "services": {
+    "ollama": "ok",
+    "redis": "ok",
+    "postgres": "not_configured"
+  },
+  "timestamp": "2026-02-19T10:30:00Z"
 }
 ```
 
-### Asynchronous Batch Triage
+### 2. Synchronous Triage (Single Email)
+
+**Use case**: Demo, testing, low-latency single emails
 
 ```bash
-# Submit batch
-curl -X POST http://localhost:8000/triage/batch \
+curl -X POST http://localhost:8000/triage \
   -H "Content-Type: application/json" \
-  -d '{"requests": [...]}'
-
-# Response: {"batch_id": "abc-123", "task_ids": ["task-1", "task-2", ...]}
-
-# Check status
-curl http://localhost:8000/triage/task/task-1
-
-# Response:
-# {"status": "SUCCESS", "result": {...}}
+  -d '{
+    "email": {
+      "uid": "email_001",
+      "mailbox": "INBOX",
+      "message_id": "<test@example.com>",
+      "fetched_at": "2026-02-19T10:00:00Z",
+      "size": 1500,
+      "from_addr_redacted": "cliente@example.com",
+      "to_addrs_redacted": ["support@company.com"],
+      "subject_canonical": "Richiesta informazioni contratto",
+      "date_parsed": "Wed, 19 Feb 2026 10:00:00 +0000",
+      "headers_canonical": {},
+      "body_text_canonical": "Buongiorno, vorrei avere informazioni sul contratto di assistenza tecnica stipulato il mese scorso.",
+      "body_original_hash": "abc123def456",
+      "pii_entities": [],
+      "removed_sections": [],
+      "pipeline_version": {
+        "parser_version": "1.0",
+        "canonicalization_version": "1.0",
+        "ner_model_version": "1.0",
+        "pii_redaction_version": "1.0"
+      },
+      "processing_timestamp": "2026-02-19T10:00:05Z",
+      "processing_duration_ms": 50
+    },
+    "candidate_keywords": [
+      {
+        "candidate_id": "hash_contratto",
+        "term": "contratto",
+        "lemma": "contratto",
+        "count": 1,
+        "source": "body",
+        "score": 0.95
+      },
+      {
+        "candidate_id": "hash_assistenza",
+        "term": "assistenza tecnica",
+        "lemma": "assistenza tecnica",
+        "count": 1,
+        "source": "body",
+        "score": 0.88
+      }
+    ],
+    "dictionary_version": 1
+  }'
 ```
 
-### Get JSON Schema
+**Response**:
+```json
+{
+  "status": "success",
+  "result": {
+    "triage_response": {
+      "dictionaryversion": 1,
+      "sentiment": {
+        "value": "neutral",
+        "confidence": 0.85
+      },
+      "priority": {
+        "value": "medium",
+        "confidence": 0.72,
+        "signals": ["contratto", "richiesta"]
+      },
+      "topics": [
+        {
+          "labelid": "CONTRATTO",
+          "confidence": 0.91,
+          "keywordsintext": [
+            {
+              "candidateid": "hash_contratto",
+              "lemma": "contratto",
+              "count": 1
+            }
+          ],
+          "evidence": [
+            {
+              "quote": "informazioni sul contratto di assistenza tecnica"
+            }
+          ]
+        },
+        {
+          "labelid": "ASSISTENZATECNICA",
+          "confidence": 0.87,
+          "keywordsintext": [
+            {
+              "candidateid": "hash_assistenza",
+              "lemma": "assistenza tecnica",
+              "count": 1
+            }
+          ],
+          "evidence": [
+            {
+              "quote": "assistenza tecnica stipulato"
+            }
+          ]
+        }
+      ]
+    },
+    "pipeline_version": {
+      "parser_version": "1.0",
+      "canonicalization_version": "1.0",
+      "ner_model_version": "1.0",
+      "pii_redaction_version": "1.0",
+      "dictionary_version": "1",
+      "schema_version": "2.0",
+      "model_name": "qwen2.5:7b",
+      "temperature": "0.1",
+      "top_n_candidates": "100",
+      "body_limit": "8000"
+    },
+    "request_uid": "email_001",
+    "validation_warnings": [],
+    "retries_used": 0,
+    "processing_duration_ms": 1523,
+    "created_at": "2026-02-19T10:00:07Z"
+  },
+  "warnings": []
+}
+```
+
+### 3. Asynchronous Batch Triage
+
+**Use case**: Production batch processing
+
+#### Step 1: Submit Batch
+
+```bash
+curl -X POST http://localhost:8000/triage/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requests": [
+      {"email": {...}, "candidate_keywords": [...], "dictionary_version": 1},
+      {"email": {...}, "candidate_keywords": [...], "dictionary_version": 1}
+    ]
+  }'
+```
+
+**Response**:
+```json
+{
+  "batch_id": "550e8400-e29b-41d4-a716-446655440000",
+  "task_count": 2,
+  "task_ids": [
+    "abc123-task-id-1",
+    "def456-task-id-2"
+  ],
+  "submitted_at": "2026-02-19T10:05:00Z"
+}
+```
+
+#### Step 2: Check Task Status
+
+```bash
+curl http://localhost:8000/triage/task/abc123-task-id-1
+```
+
+**Response (PENDING)**:
+```json
+{
+  "task_id": "abc123-task-id-1",
+  "status": "PENDING"
+}
+```
+
+**Response (SUCCESS)**:
+```json
+{
+  "task_id": "abc123-task-id-1",
+  "status": "SUCCESS",
+  "result": {
+    "triage_response": {...},
+    "pipeline_version": {...},
+    "request_uid": "email_001",
+    "validation_warnings": [],
+    "retries_used": 0,
+    "processing_duration_ms": 1523,
+    "created_at": "2026-02-19T10:05:03Z"
+  }
+}
+```
+
+**Response (FAILURE)**:
+```json
+{
+  "task_id": "abc123-task-id-1",
+  "status": "FAILURE",
+  "error": "RetryExhausted: Unable to process after 3 retry attempts"
+}
+```
+
+#### Step 3: Get Task Result (Blocking)
+
+```bash
+curl http://localhost:8000/triage/result/abc123-task-id-1
+```
+
+**Returns**: `200` with result (if SUCCESS), `202` (if still processing), `404` (if not found), `500` (if failed)
+
+### 4. Get JSON Schema
 
 ```bash
 curl http://localhost:8000/schema
+```
+
+**Returns**: Complete JSON Schema used for LLM structured output validation
+
+### 5. Get Version Info
+
+```bash
+curl http://localhost:8000/version
+```
+
+**Response**:
+```json
+{
+  "inference_layer_version": "0.1.0",
+  "model_name": "qwen2.5:7b",
+  "dictionary_version": 1,
+  "schema_version": "2.0",
+  "pipeline_config": {
+    "parser": "1.0",
+    "canonicalization": "1.0",
+    "ner_model": "1.0",
+    "pii_redaction": "1.0",
+    "temperature": "0.1",
+    "top_n_candidates": "100",
+    "body_limit": "8000"
+  }
+}
+```
+
+### Error Responses
+
+| Status Code | Error Type | Description |
+|-------------|-----------|-------------|
+| `400` | Bad Request | Invalid request format |
+| `422` | Validation Error | LLM response validation failed |
+| `502` | Bad Gateway | Ollama connection failed |
+| `503` | Service Unavailable | Retry exhausted (DLQ) |
+| `504` | Gateway Timeout | LLM timeout |
+
+**Example Error Response**:
+```json
+{
+  "error": "validation_failed",
+  "message": "Stage 3: Business rule violation",
+  "details": {
+    "stage": "stage3_business_rules",
+    "rule_name": "candidateid_exists",
+    "field_path": "topics[0].keywordsintext[0].candidateid",
+    "invalid_value": "invented_id_123",
+    "expected_values": ["hash_contratto", "hash_assistenza"]
+  },
+  "timestamp": "2026-02-19T10:10:00Z"
+}
 ```
 
 ---
@@ -392,17 +639,25 @@ docker-compose exec redis redis-cli ping
 
 ## 🗺️ Roadmap
 
-- [x] Phase 0: Scaffolding (directory structure, Docker, config)
-- [ ] Phase 1: Data Models (Pydantic v2)
-- [ ] Phase 2: LLM Client + Prompt Builder
-- [ ] Phase 3: Multi-Stage Validation
-- [ ] Phase 4: Retry Engine + Fallback
-- [ ] Phase 5: API (FastAPI + Celery)
-- [ ] Phase 6: PII Redaction
-- [ ] Phase 7: Persistence (PostgreSQL)
-- [ ] Phase 8: Configuration & Docker
-- [ ] Phase 9: Tests (Unit + Integration)
-- [ ] Phase 10: Logging, Metrics, CI
+- [x] **Phase 0**: Scaffolding (directory structure, Docker, config)
+- [x] **Phase 1**: Data Models (Pydantic v2, enums, input/output models, JSON Schema)
+- [x] **Phase 2**: LLM Client + Prompt Builder (OllamaClient, PromptBuilder, PII redactor)
+- [x] **Phase 3**: Multi-Stage Validation (4-stage pipeline, verifiers, exceptions)
+- [x] **Phase 4**: Retry Engine + Fallback (4-level retry, metadata tracking, DLQ logging)
+- [x] **Phase 5**: API (FastAPI + Celery) — **✓ COMPLETED**
+  - ✓ Synchronous endpoints (`/triage`, `/health`, `/schema`, `/version`)
+  - ✓ Asynchronous endpoints (`/triage/batch`, `/triage/task/{id}`, `/triage/result/{id}`)
+  - ✓ Celery tasks (`triage_email`, `triage_batch`)
+  - ✓ Exception handlers (structured error responses)
+  - ✓ Dependency injection (singleton LLM client, prompt builder)
+  - ✓ Prometheus metrics instrumentation
+  - ✓ Unit tests (dependencies, models)
+  - ✓ Integration tests (TestClient, health checks)
+- [ ] **Phase 6**: PII Redaction (on-the-fly for LLM, configurable)
+- [ ] **Phase 7**: Persistence (PostgreSQL, DLQ table, repository pattern)
+- [ ] **Phase 8**: Configuration & Docker (finalize Dockerfiles, healthchecks)
+- [ ] **Phase 9**: Tests (comprehensive unit + integration coverage ≥85%)
+- [ ] **Phase 10**: Logging, Metrics, CI (structured logging, Grafana dashboards, GitHub Actions)
 
 See [IMPLEMENTATION_PROGRESS.md](IMPLEMENTATION_PROGRESS.md) for detailed tracker.
 

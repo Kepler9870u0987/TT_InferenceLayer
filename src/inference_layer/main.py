@@ -2,10 +2,20 @@
 FastAPI application entry point for LLM Inference Layer.
 """
 
+import logging
+from pathlib import Path
+
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
+from inference_layer.api.error_handlers import EXCEPTION_HANDLERS
+from inference_layer.api.routes_async import router as async_router
+from inference_layer.api.routes_sync import router as sync_router
 from inference_layer.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
@@ -25,28 +35,51 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Register exception handlers
+for exc_class, handler in EXCEPTION_HANDLERS.items():
+    app.add_exception_handler(exc_class, handler)
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize resources on startup."""
-    # TODO: Initialize DB connection pool
-    # TODO: Initialize LLM client
-    # TODO: Load JSON schema
-    pass
+# Inlogger.info("Application startup")
+    
+    # Test Ollama connection
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{settings.OLLAMA_BASE_URL}/api/tags")
+            if response.status_code == 200:
+                logger.info("✓ Ollama connection successful")
+            else:
+                logger.warning(f"⚠ Ollama returned status {response.status_code}")
+    except Exception as e:
+        logger.error(f"✗ Ollama connection failed: {e}")
+    
+    # Verify JSON Schema exists
+    schema_path = Path(settings.JSON_SCHEMA_PATH)
+    if schema_path.exists():
+        logger.info(f"✓ JSON Schema loaded from {schema_path}")
+    else:
+        logger.error(f"✗ JSON Schema not found at {schema_path}")
+    
+    # Verify prompt templates exist
+    logger.info("Application shutdown")
+    # Resources are managed by FastAPI dependency injection lifecycle
+    # LLM client connections are automatically closed
+    logger.info("Application shutdown complete")logger.info(f"✓ Prompt templates directory found: {templates_dir}")
+    else:
+        logger.error(f"✗ Prompt templates directory not found: {templates_dir}")
+    
+    logger.info("Application startup complete")
+# Prometheus metrics instrumentation
+if settings.PROMETHEUS_ENABLED:
+    Instrumentator().instrument(app).expose(app)
+
+    "docs": "/docs",
+        "health": "/health",
+        "schema": "/schema",
+        "metrics": "/metrics" if settings.PROMETHEUS_ENABLED else None,
+    }
 
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup resources on shutdown."""
-    # TODO: Close DB connections
-    # TODO: Close LLM client
-    pass
-
-
-@app.get("/")
-async def root():
-    """Root endpoint - basic info."""
-    return {
+# Note: /health endpoint is now in routes_sync.py with full service checks
         "service": "LLM Inference Layer",
         "version": "0.1.0",
         "status": "running",

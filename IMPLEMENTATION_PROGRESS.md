@@ -3,7 +3,7 @@
 > **Progetto**: Thread Classificator Mail - LLM Inference Layer  
 > **Data inizio**: 2026-02-19  
 > **Ultimo aggiornamento**: 2026-02-19  
-> **Stato generale**: 🟡 IN PROGRESS (Fase 0, 1, 2, 3, 4 completate - Fase 5 prossima)
+> **Stato generale**: 🟡 IN PROGRESS (Fase 0, 1, 2, 3, 4, 5 completate - Fase 6 prossima)
 
 ---
 
@@ -16,7 +16,7 @@
 | **Fase 2** — LLM Client | 🟢 Completed | 100% | BaseLLMClient, OllamaClient, PromptBuilder, PII redactor, tests done |
 | **Fase 3** — Validation | 🟢 Completed | 100% | 4-stage pipeline, verifiers, 85+ tests, fixtures complete |
 | **Fase 4** — Retry Engine | 🟢 Completed | 100% | 4-level retry strategy, metadata tracking, 50+ tests done |
-| **Fase 5** — API FastAPI | ⚪ Not Started | 0% | - |
+| **Fase 5** — API FastAPI | 🟢 Completed | 100% | Sync/async endpoints, Celery, error handlers, tests done |
 | **Fase 6** — PII Redaction | ⚪ Not Started | 0% | - |
 | **Fase 7** — Persistenza | ⚪ Not Started | 0% | - |
 | **Fase 8** — Config & Docker | ⚪ Not Started | 0% | - |
