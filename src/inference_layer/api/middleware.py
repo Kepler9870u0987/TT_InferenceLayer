@@ -2,7 +2,7 @@
 
 import time
 import uuid
-from typing import Callable
+from typing import Callable, Awaitable
 
 import structlog
 from fastapi import Request, Response
@@ -22,7 +22,7 @@ class RequestTracingMiddleware(BaseHTTPMiddleware):
     """
     
     async def dispatch(
-        self, request: Request, call_next: Callable[[Request], Response]
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         """Process request with tracing context."""
         # Generate request ID

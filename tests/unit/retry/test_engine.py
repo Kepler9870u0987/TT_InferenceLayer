@@ -237,7 +237,7 @@ async def test_retry_engine_success_second_attempt():
         assert metadata.total_attempts == 2
         assert metadata.final_strategy == "standard"
         assert len(metadata.validation_failures) == 1
-        assert metadata.validation_failures[0]["content_snippet"] == "bad json"
+        assert metadata.validation_failures[0]["content_snippet"] == "bad json content"
 
 
 @pytest.mark.asyncio

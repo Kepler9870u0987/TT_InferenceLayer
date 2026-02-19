@@ -31,8 +31,9 @@ def test_get_settings():
 
 def test_get_llm_client():
     """Test LLM client singleton."""
-    client1 = get_llm_client()
-    client2 = get_llm_client()
+    settings = get_settings()
+    client1 = get_llm_client(settings)
+    client2 = get_llm_client(settings)
     
     # Should be same instance (cached)
     assert client1 is client2
@@ -41,8 +42,9 @@ def test_get_llm_client():
 
 def test_get_prompt_builder():
     """Test prompt builder singleton."""
-    builder1 = get_prompt_builder()
-    builder2 = get_prompt_builder()
+    settings = get_settings()
+    builder1 = get_prompt_builder(settings)
+    builder2 = get_prompt_builder(settings)
     
     # Should be same instance (cached)
     assert builder1 is builder2
@@ -51,8 +53,9 @@ def test_get_prompt_builder():
 
 def test_get_validation_pipeline():
     """Test validation pipeline singleton."""
-    pipeline1 = get_validation_pipeline()
-    pipeline2 = get_validation_pipeline()
+    settings = get_settings()
+    pipeline1 = get_validation_pipeline(settings)
+    pipeline2 = get_validation_pipeline(settings)
     
     # Should be same instance (cached)
     assert pipeline1 is pipeline2
@@ -61,8 +64,13 @@ def test_get_validation_pipeline():
 
 def test_get_retry_engine():
     """Test retry engine factory (not cached)."""
-    engine1 = get_retry_engine()
-    engine2 = get_retry_engine()
+    settings = get_settings()
+    client = get_llm_client(settings)
+    builder = get_prompt_builder(settings)
+    pipeline = get_validation_pipeline(settings)
+    
+    engine1 = get_retry_engine(client, builder, pipeline, settings)
+    engine2 = get_retry_engine(client, builder, pipeline, settings)
     
     # Should be different instances (not cached)
     # But underlying components should be cached
@@ -78,10 +86,10 @@ def test_get_retry_engine():
 def test_dependencies_integration():
     """Test that dependencies work together."""
     settings = get_settings()
-    client = get_llm_client()
-    builder = get_prompt_builder()
-    pipeline = get_validation_pipeline()
-    engine = get_retry_engine()
+    client = get_llm_client(settings)
+    builder = get_prompt_builder(settings)
+    pipeline = get_validation_pipeline(settings)
+    engine = get_retry_engine(client, builder, pipeline, settings)
     
     # All should be initialized
     assert settings is not None

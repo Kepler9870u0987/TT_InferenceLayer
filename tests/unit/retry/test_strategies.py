@@ -162,7 +162,7 @@ async def test_standard_retry_success_first_attempt():
     mock_client.generate = AsyncMock(return_value=create_mock_llm_response())
 
     mock_builder = MagicMock(spec=PromptBuilder)
-    mock_builder.get_system_prompt.return_value = "System prompt"
+    mock_builder.build_system_prompt.return_value = "System prompt"
     mock_builder.build_user_prompt.return_value = ("User prompt", {"candidates_count": 2})
     mock_builder.temperature = 0.1
     mock_builder.max_tokens = 2048
@@ -206,7 +206,7 @@ async def test_standard_retry_success_second_attempt():
     mock_client.generate = AsyncMock(return_value=create_mock_llm_response())
 
     mock_builder = MagicMock(spec=PromptBuilder)
-    mock_builder.get_system_prompt.return_value = "System prompt"
+    mock_builder.build_system_prompt.return_value = "System prompt"
     mock_builder.build_user_prompt.return_value = ("User prompt", {})
     mock_builder.temperature = 0.1
     mock_builder.max_tokens = 2048
@@ -249,7 +249,7 @@ async def test_standard_retry_validation_failure():
     mock_client.generate = AsyncMock(return_value=create_mock_llm_response())
 
     mock_builder = MagicMock(spec=PromptBuilder)
-    mock_builder.get_system_prompt.return_value = "System prompt"
+    mock_builder.build_system_prompt.return_value = "System prompt"
     mock_builder.build_user_prompt.return_value = ("User prompt", {})
     mock_builder.temperature = 0.1
     mock_builder.max_tokens = 2048
@@ -295,7 +295,7 @@ async def test_standard_retry_no_backoff_first_attempt():
     mock_client.generate = AsyncMock(return_value=create_mock_llm_response())
 
     mock_builder = MagicMock(spec=PromptBuilder)
-    mock_builder.get_system_prompt.return_value = "System prompt"
+    mock_builder.build_system_prompt.return_value = "System prompt"
     mock_builder.build_user_prompt.return_value = ("User prompt", {})
     mock_builder.temperature = 0.1
     mock_builder.max_tokens = 2048
@@ -341,7 +341,7 @@ async def test_shrink_retry_uses_shrink_mode():
     mock_client.generate = AsyncMock(return_value=create_mock_llm_response())
 
     mock_builder = MagicMock(spec=PromptBuilder)
-    mock_builder.get_system_prompt.return_value = "System prompt"
+    mock_builder.build_system_prompt.return_value = "System prompt"
     mock_builder.build_user_prompt.return_value = (
         "User prompt (shrunk)",
         {"candidates_count": 25, "body_length": 2000, "shrink_mode": True},
@@ -400,7 +400,7 @@ async def test_fallback_model_success():
     mock_client.generate = AsyncMock(return_value=create_mock_llm_response())
 
     mock_builder = MagicMock(spec=PromptBuilder)
-    mock_builder.get_system_prompt.return_value = "System prompt"
+    mock_builder.build_system_prompt.return_value = "System prompt"
     mock_builder.build_user_prompt.return_value = ("User prompt", {})
     mock_builder.temperature = 0.1
     mock_builder.max_tokens = 2048
@@ -442,7 +442,7 @@ async def test_fallback_model_cycles_through_models():
     mock_client.generate = AsyncMock(return_value=create_mock_llm_response())
 
     mock_builder = MagicMock(spec=PromptBuilder)
-    mock_builder.get_system_prompt.return_value = "System prompt"
+    mock_builder.build_system_prompt.return_value = "System prompt"
     mock_builder.build_user_prompt.return_value = ("User prompt", {})
     mock_builder.temperature = 0.1
     mock_builder.max_tokens = 2048
@@ -542,7 +542,7 @@ async def test_exponential_backoff_timing():
     mock_client.generate = AsyncMock(return_value=create_mock_llm_response())
 
     mock_builder = MagicMock(spec=PromptBuilder)
-    mock_builder.get_system_prompt.return_value = "System prompt"
+    mock_builder.build_system_prompt.return_value = "System prompt"
     mock_builder.build_user_prompt.return_value = ("User prompt", {})
     mock_builder.temperature = 0.1
     mock_builder.max_tokens = 2048

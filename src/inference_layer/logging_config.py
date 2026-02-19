@@ -57,7 +57,7 @@ def configure_logging(log_level: str = "INFO", environment: str = "development")
         renderer: structlog.types.Processor = structlog.processors.JSONRenderer()
     else:
         # Pretty console output for development
-        shared_processors.append(structlog.dev.ExceptionPrettyPrinter())
+        shared_processors.append(structlog.processors.format_exc_info)
         renderer = structlog.dev.ConsoleRenderer(colors=True)
     
     # Configure structlog

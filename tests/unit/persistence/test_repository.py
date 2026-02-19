@@ -53,7 +53,7 @@ def sample_result():
             topics=[],
             sentiment=SentimentResult(value=SentimentEnum.NEUTRAL, confidence=0.8),
             priority=PriorityResult(
-                value=PriorityEnum.P3,
+                value=PriorityEnum.MEDIUM,
                 confidence=0.7,
                 signals=["routine inquiry"]
             ),

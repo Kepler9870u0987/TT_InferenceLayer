@@ -115,13 +115,13 @@ class TestRedactPiiInCandidates:
         assert len(result) == 2
     
     def test_filters_pii_candidates(self):
-        """Should filt
-                type="EMAIL", original_hash="abc", redacted="user@example.com",
-                span_start=8, span_end=24, confidence=0.95, detection_method="regex"
-            
+        """Should filter out PII candidate terms."""
         body = "Contact user@example.com for contratto info."
         entities = [
-            PiiEntity(type="EMAIL", hash="abc", span=[8, 24], confidence=0.95),
+            PiiEntity(
+                type="EMAIL", original_hash="abc", redacted="user@example.com",
+                span_start=8, span_end=24, confidence=0.95, detection_method="regex"
+            ),
         ]
         candidates = [
             CandidateKeyword(

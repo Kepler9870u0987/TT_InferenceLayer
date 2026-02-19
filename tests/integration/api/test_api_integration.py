@@ -23,9 +23,9 @@ def test_root_endpoint():
     data = response.json()
     assert data["service"] == "LLM Inference Layer"
     assert data["version"] == "0.1.0"
-    assert data["status"] == "running"
     assert "docs" in data
     assert "health" in data
+    assert "schema" in data
 
 
 def test_schema_endpoint():

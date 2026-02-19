@@ -30,7 +30,10 @@ from inference_layer.config import Settings
 from inference_layer.models.input_models import TriageRequest
 from inference_layer.models.output_models import TriageResult
 from inference_layer.models.pipeline_version import PipelineVersion
-from inference_layer.monitoring.metrics import (\n    topic_distribution_total,\n    unknown_topic_ratio,\n)
+from inference_layer.monitoring.metrics import (
+    topic_distribution_total,
+    unknown_topic_ratio,
+)
 from inference_layer.persistence.repository import AsyncTriageRepository
 from inference_layer.retry.engine import RetryEngine
 

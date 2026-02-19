@@ -33,7 +33,7 @@ class TestStage4QualityChecks:
                     labelid="CONTRATTO",
                     confidence=0.9,
                     keywordsintext=[
-                        KeywordInText(candidate_id="hash_001", lemma="contratto", count=1)
+                        KeywordInText(candidateid="hash_001", lemma="contratto", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test evidence")]
                 )
@@ -78,7 +78,7 @@ class TestStage4QualityChecks:
                     labelid="CONTRATTO",
                     confidence=0.05,  # Very low!
                     keywordsintext=[
-                        KeywordInText(candidate_id="h1", lemma="test", count=1)
+                        KeywordInText(candidateid="h1", lemma="test", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test")]
                 )
@@ -98,7 +98,7 @@ class TestStage4QualityChecks:
                     labelid="CONTRATTO",
                     confidence=0.9,
                     keywordsintext=[
-                        KeywordInText(candidate_id="h1", lemma="test1", count=1)
+                        KeywordInText(candidateid="h1", lemma="test1", count=1)
                     ],
                     evidence=[EvidenceItem(quote="evidence1")]
                 ),
@@ -106,7 +106,7 @@ class TestStage4QualityChecks:
                     labelid="CONTRATTO",  # Duplicate!
                     confidence=0.8,
                     keywordsintext=[
-                        KeywordInText(candidate_id="h2", lemma="test2", count=1)
+                        KeywordInText(candidateid="h2", lemma="test2", count=1)
                     ],
                     evidence=[EvidenceItem(quote="evidence2")]
                 ),
@@ -125,9 +125,9 @@ class TestStage4QualityChecks:
                     labelid="CONTRATTO",
                     confidence=0.9,
                     keywordsintext=[
-                        KeywordInText(candidate_id="hash_001", lemma="contratto", count=1),
-                        KeywordInText(candidate_id="hash_002", lemma="garanzia", count=1),
-                        KeywordInText(candidate_id="hash_001", lemma="contratto", count=2),  # Duplicate!
+                        KeywordInText(candidateid="hash_001", lemma="contratto", count=1),
+                        KeywordInText(candidateid="hash_002", lemma="garanzia", count=1),
+                        KeywordInText(candidateid="hash_001", lemma="contratto", count=2),  # Duplicate!
                     ],
                     evidence=[EvidenceItem(quote="test")]
                 )
@@ -146,7 +146,7 @@ class TestStage4QualityChecks:
                     labelid="CONTRATTO",
                     confidence=0.9,
                     keywordsintext=[
-                        KeywordInText(candidate_id="h1", lemma="test", count=1)
+                        KeywordInText(candidateid="h1", lemma="test", count=1)
                     ],
                     evidence=[
                         EvidenceItem(quote="Same quote here"),
@@ -168,7 +168,7 @@ class TestStage4QualityChecks:
                     labelid="CONTRATTO",
                     confidence=0.9,
                     keywordsintext=[
-                        KeywordInText(candidate_id="h1", lemma="test", count=1)
+                        KeywordInText(candidateid="h1", lemma="test", count=1)
                     ],
                     evidence=[
                         EvidenceItem(quote="Test Quote"),
@@ -207,7 +207,7 @@ class TestStage4QualityChecks:
                     labelid="CONTRATTO",
                     confidence=0.9,
                     keywordsintext=[
-                        KeywordInText(candidate_id="h1", lemma="test", count=1)
+                        KeywordInText(candidateid="h1", lemma="test", count=1)
                     ],
                     evidence=[]  # No evidence!
                 )
@@ -236,7 +236,7 @@ class TestStage4QualityChecks:
                     labelid="CONTRATTO",
                     confidence=0.9,
                     keywordsintext=[
-                        KeywordInText(candidate_id="h1", lemma="test", count=1)
+                        KeywordInText(candidateid="h1", lemma="test", count=1)
                     ],
                     evidence=[
                         EvidenceItem(quote="x" * 190)  # 190 chars (max is 200)
