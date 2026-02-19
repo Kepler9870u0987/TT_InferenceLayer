@@ -1,0 +1,173 @@
+version: '3.8'
+
+services:
+  # === PostgreSQL Database ===
+  postgres:
+    image: postgres:16-alpine
+    container_name: llm_postgres
+    environment:
+      POSTGRES_USER: llm_user
+      POSTGRES_PASSWORD: llm_pass
+      POSTGRES_DB: llm_inference
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U llm_user -d llm_inference"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - llm_network
+
+  # === Redis (Broker & Result Backend) ===
+  redis:
+    image: redis:7-alpine
+    container_name: llm_redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - llm_network
+
+  # === Ollama (LLM Inference Server) ===
+  ollama:
+    image: ollama/ollama:latest
+    container_name: llm_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    # Uncomment for GPU support (NVIDIA)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - llm_network
+
+  # === FastAPI Application ===
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: llm_api
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - DATABASE_URL=postgresql+asyncpg://llm_user:llm_pass@postgres:5432/llm_inference
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - LOG_LEVEL=INFO
+      - DEBUG=False
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./tests:/app/tests
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - llm_network
+    # Uncomment for development with auto-reload
+    # command: uvicorn inference_layer.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # === Celery Worker ===
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    container_name: llm_worker
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - DATABASE_URL=postgresql+asyncpg://llm_user:llm_pass@postgres:5432/llm_inference
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    networks:
+      - llm_network
+    # Scale workers with: docker-compose up --scale worker=4
+
+  # === Prometheus (Metrics Collection) [Optional] ===
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: llm_prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+  #     - prometheus_data:/prometheus
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #   networks:
+  #     - llm_network
+
+  # === Grafana (Metrics Visualization) [Optional] ===
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: llm_grafana
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - GF_SECURITY_ADMIN_PASSWORD=admin
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+  #   depends_on:
+  #     - prometheus
+  #   networks:
+  #     - llm_network
+
+networks:
+  llm_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  ollama_models:
+  # prometheus_data:
+  # grafana_data:
