@@ -48,7 +48,6 @@ models_cache/
 
 # OAuth2 tokens and credentials
 tokens/
-*.json
 !config/*.json
 !docs/**/*.json
 

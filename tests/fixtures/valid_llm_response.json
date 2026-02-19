@@ -1,0 +1,82 @@
+{
+  "dictionaryversion": 1,
+  "sentiment": {
+    "value": "neutral",
+    "confidence": 0.85
+  },
+  "priority": {
+    "value": "medium",
+    "confidence": 0.72,
+    "signals": [
+      "richiesta informazioni",
+      "documento allegato",
+      "contratto in corso"
+    ]
+  },
+  "topics": [
+    {
+      "labelid": "CONTRATTO",
+      "confidence": 0.91,
+      "keywordsintext": [
+        {
+          "candidateid": "hash_001_contratto",
+          "lemma": "contratto",
+          "count": 2,
+          "spans": [[37, 46], [112, 121]]
+        },
+        {
+          "candidateid": "hash_002_informazioni",
+          "lemma": "informazione",
+          "count": 1,
+          "spans": [[20, 32]]
+        },
+        {
+          "candidateid": "hash_003_richiesta",
+          "lemma": "richiesta",
+          "count": 1,
+          "spans": [[10, 19]]
+        }
+      ],
+      "evidence": [
+        {
+          "quote": "Richiesta informazioni contratto n. 2024/ABC/123",
+          "span": [4, 53]
+        },
+        {
+          "quote": "Volevo confermare che i dati sono corretti",
+          "span": [68, 110]
+        }
+      ]
+    },
+    {
+      "labelid": "DOCUMENTI",
+      "confidence": 0.78,
+      "keywordsintext": [
+        {
+          "candidateid": "hash_004_documento",
+          "lemma": "documento",
+          "count": 1,
+          "spans": [[192, 201]]
+        },
+        {
+          "candidateid": "hash_005_firmato",
+          "lemma": "firmare",
+          "count": 1,
+          "spans": [[202, 209]]
+        },
+        {
+          "candidateid": "hash_008_allegato",
+          "lemma": "allegato",
+          "count": 1,
+          "spans": [[180, 188]]
+        }
+      ],
+      "evidence": [
+        {
+          "quote": "In allegato trovate il documento firmato",
+          "span": [176, 217]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "dictionaryversion": 1,
+  "priority": {
+    "value": "medium",
+    "confidence": 0.7,
+    "signals": ["test"]
+  },
+  "topics": [
+    {
+      "labelid": "CONTRATTO",
+      "confidence": 0.9,
+      "keywordsintext": [
+        {
+          "candidateid": "hash_001_contratto",
+          "lemma": "contratto",
+          "count": 1
+        }
+      ],
+      "evidence": [
+        {
+          "quote": "test evidence"
+        }
+      ]
+    }
+  ]
+}

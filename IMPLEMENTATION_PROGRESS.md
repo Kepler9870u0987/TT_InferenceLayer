@@ -3,7 +3,7 @@
 > **Progetto**: Thread Classificator Mail - LLM Inference Layer  
 > **Data inizio**: 2026-02-19  
 > **Ultimo aggiornamento**: 2026-02-19  
-> **Stato generale**: 🟡 IN PROGRESS (Fase 0, 1, 2 completate - Fase 3 prossima)
+> **Stato generale**: 🟡 IN PROGRESS (Fase 0, 1, 2, 3 completate - Fase 4 prossima)
 
 ---
 
@@ -14,7 +14,7 @@
 | **Fase 0** — Scaffolding | 🟢 Completed | 100% | Structure, pyproject.toml, Docker, README done |
 | **Fase 1** — Data Models | 🟢 Completed | 100% | Enums, input/output models, JSON Schema, fixtures done |
 | **Fase 2** — LLM Client | 🟢 Completed | 100% | BaseLLMClient, OllamaClient, PromptBuilder, PII redactor, tests done |
-| **Fase 3** — Validation | ⚪ Not Started | 0% | - |
+| **Fase 3** — Validation | 🟢 Completed | 100% | 4-stage pipeline, verifiers, 85+ tests, fixtures complete |
 | **Fase 4** — Retry Engine | ⚪ Not Started | 0% | - |
 | **Fase 5** — API FastAPI | ⚪ Not Started | 0% | - |
 | **Fase 6** — PII Redaction | ⚪ Not Started | 0% | - |
@@ -154,23 +154,90 @@
 
 ---
 
-## Fase 3 — Validazione Multi-Stadio (3–4 giorni)
+## Fase 3 — Validazione Multi-Stadio (3–4 giorni) ✅ COMPLETED
 
 ### Tasks
 
-- [ ] 3.1 — Stage 1: JSON Parse
-- [ ] 3.2 — Stage 2: JSON Schema validation
-- [ ] 3.3 — Stage 3: Business rules (candidateid exists, labelid in enum)
-- [ ] 3.4 — Stage 4: Quality checks (confidence gating, dedup, warnings)
-- [ ] 3.5 — Verifiers extra (evidence presence, keyword presence, spans coherence)
-- [ ] 3.6 — Pipeline orchestrator
+- [x] 3.1 — Stage 1: JSON Parse (hard fail)
+- [x] 3.2 — Stage 2: JSON Schema validation (hard fail)
+- [x] 3.3 — Stage 3: Business rules (candidateid exists, labelid in enum) (hard fail)
+- [x] 3.4 — Stage 4: Quality checks (confidence gating, dedup, warnings)
+- [x] 3.5 — Verifiers extra (evidence presence, keyword presence, spans coherence)
+- [x] 3.6 — Pipeline orchestrator (ValidationPipeline)
+- [x] 3.7 — Validation exceptions hierarchy
+- [x] 3.8 — ValidationContext dataclass
+- [x] 3.9 — Unit tests for all stages and verifiers
+- [x] 3.10 — Integration tests for full pipeline
+- [x] 3.11 — Invalid test fixtures for failure scenarios
+- [x] 3.12 — Update module exports
 
 ### Files Created
-- N/A
+- `src/inference_layer/validation/exceptions.py` (ValidationError, JSONParseError, SchemaValidationError, BusinessRuleViolation)
+- `src/inference_layer/validation/stage1_json_parse.py` (Stage1JSONParse)
+- `src/inference_layer/validation/stage2_schema.py` (Stage2SchemaValidation with jsonschema)
+- `src/inference_layer/validation/stage3_business_rules.py` (Stage3BusinessRules)
+- `src/inference_layer/validation/stage4_quality.py` (Stage4QualityChecks)
+- `src/inference_layer/validation/verifiers.py` (EvidencePresenceVerifier, KeywordPresenceVerifier, SpansCoherenceVerifier)
+- `src/inference_layer/validation/pipeline.py` (ValidationPipeline orchestrator, ValidationContext)
+- `tests/unit/validation/__init__.py`
+- `tests/unit/validation/test_stage1_json_parse.py` (13 test cases)
+- `tests/unit/validation/test_stage2_schema.py` (15 test cases covering schema violations)
+- `tests/unit/validation/test_stage3_business_rules.py` (15 test cases for business rules)
+- `tests/unit/validation/test_stage4_quality.py` (17 test cases for quality warnings)
+- `tests/unit/validation/test_verifiers.py` (25+ test cases for all verifiers)
+- `tests/integration/validation/__init__.py`
+- `tests/integration/validation/test_validation_pipeline.py` (15 integration tests for full pipeline)
+- `tests/fixtures/invalid_json_response.json` (malformed JSON fixture)
+- `tests/fixtures/invalid_schema_response.json` (missing required field)
+- `tests/fixtures/invalid_business_rules_response.json` (invented candidateid + invalid topic)
+- `tests/fixtures/low_quality_response.json` (low confidence, duplicates, long quotes)
 
 ### Notes
-- Hard fail su stage 1/2/3 → retry
-- Warnings su stage 4 → salvati ma non bloccanti
+- **Stage 1-3 (Hard Fail)**: Raise exceptions that trigger retry engine
+  - Stage 1: JSON parsing with detailed error messages
+  - Stage 2: JSON Schema validation using jsonschema library with schema caching
+  - Stage 3: Business rules enforcement (candidateid exists, labelid in enum, version match, sentiment/priority enums)
+- **Stage 4 (Warnings)**: Quality checks accumulate warnings (non-blocking)
+  - Low confidence detection (configurable threshold, default 0.2)
+  - Duplicate detection (topics, keywords, evidence quotes)
+  - Completeness checks (topics without keywords/evidence, empty priority signals)
+  - Long quote detection (>180 chars, max is 200)
+- **Verifiers (Warnings)**: Semantic coherence checks (configurable)
+  - Evidence presence: Verify quotes exist in email text (case-insensitive substring match)
+  - Keyword presence: Verify terms/lemmas appear in email text
+  - Spans coherence: Validate span arrays are well-formed [start, end] within bounds
+- **Pipeline Orchestrator**: Coordinates all stages and verifiers
+  - Sequential execution: Stage 1 → Stage 2 → Pydantic parse → Stage 3 → Stage 4 → Verifiers
+  - ValidationContext passed through for settings and warnings accumulation
+  - Async implementation consistent with LLM client API
+  - Configurable verifiers via settings (ENABLE_EVIDENCE_PRESENCE_CHECK, ENABLE_KEYWORD_PRESENCE_CHECK)
+  - Returns tuple of (validated EmailTriageResponse, list of warnings)
+- **Exception Hierarchy**: Structured for retry engine integration
+  - ValidationError (base) with details dict for logging/metrics
+  - JSONParseError includes content snippet (500 chars) and parse error details
+  - SchemaValidationError includes list of validation errors with field paths
+  - BusinessRuleViolation includes rule_name, invalid_value, expected_values, field_path
+- **Testing**: Comprehensive coverage
+  - 85+ unit test cases covering all stages, verifiers, and edge cases
+  - 15 integration tests exercising full pipeline with real fixtures
+  - Test fixtures for valid and invalid responses (malformed JSON, schema violations, business rule violations, low quality)
+  - Tests verify exceptions are raised correctly, warnings are accumulated, and logging works
+- **Configuration**: Validation settings in config.py
+  - JSON_SCHEMA_PATH: config/schema/email_triage_v2.json
+  - MIN_CONFIDENCE_WARNING_THRESHOLD: 0.2 (warn if topic/sentiment/priority confidence below this)
+  - ENABLE_EVIDENCE_PRESENCE_CHECK: True (configurable verifier)
+  - ENABLE_KEYWORD_PRESENCE_CHECK: True (configurable verifier)
+
+### Decisions Made
+- **Stage-based architecture**: Each stage is independent, testable, follows single responsibility
+- **Fail-fast on hard errors**: Stages 1-3 raise exceptions immediately (no partial validation)
+- **Accumulate warnings**: Stage 4 + verifiers collect all warnings before returning (for audit trail)
+- **ValidationContext pattern**: Clean way to pass request/settings through pipeline without coupling stages
+- **Async pipeline**: Consistent with LLM client API, prepares for future async verifiers if needed
+- **Schema caching**: Load JSON Schema once and reuse (performance optimization)
+- **Configurable verifiers**: Production can tune strictness via config flags (evidence/keyword presence checks optional)
+- **Detailed error messages**: All exceptions include field paths, invalid values, expected values for debugging/metrics
+- **Case-insensitive matching**: Evidence and keyword presence checks are case-insensitive for robustness
 
 ---
 
@@ -316,9 +383,14 @@ _Nessun blocker al momento._
 8. ✅ Implementare prompt builder (Jinja2 templates, truncation, top-N)
 9. ✅ Implementare PII redactor e text utilities
 10. ✅ Unit & integration tests per Fase 2
-11. 🔄 **CURRENT**: Implementare validation pipeline (4 stages + verifiers)
-12. 🔜 Implementare retry engine con fallback strategies
-13. 🔜 Implementare API FastAPI (endpoints sincroni/asincroni)
+11. ✅ Implementare validation pipeline (4 stages + verifiers)
+12. ✅ Implementare exceptions hierarchy per validation
+13. ✅ Unit tests completi per validation (85+ test cases)
+14. ✅ Integration tests per validation pipeline
+15. ✅ Invalid test fixtures per failure scenarios
+16. 🔄 **CURRENT**: Implementare retry engine con fallback strategies (Phase 4)
+17. 🔜 Implementare API FastAPI (endpoints sincroni/asincroni)
+18. 🔜 Implementare persistence layer (PostgreSQL + JSONB)
 
 ---
 
@@ -336,6 +408,13 @@ _Nessun blocker al momento._
 | 2026-02-19 | Prompts: Jinja2 templates in config/prompts/ | Manutenibilità, versionamento, sperimentazione facilitata |
 | 2026-02-19 | Truncation: sentence boundary | Preserva contesto semantico vs hard truncation |
 | 2026-02-19 | Jinja2 dependency added | Per prompt templating (3.1.0+)
+| 2026-02-19 | Validation: 4-stage architecture | Separazione responsabilità: parse → schema → business → quality |
+| 2026-02-19 | Validation: Stages 1-3 hard fail, Stage 4 warnings | Hard fail su errori strutturali/semantici; warnings su quality issues |
+| 2026-02-19 | Validation: jsonschema library per Stage 2 | Standard, ben testato, caching per performance |
+| 2026-02-19 | Validation: Verifiers configurabili | Evidence/keyword presence checks optional via config flags |
+| 2026-02-19 | Validation: ValidationContext pattern | Clean dependency injection per settings/warnings accumulation |
+| 2026-02-19 | Validation: Structured exceptions con details | Include field_path, invalid_value, expected_values per debugging/metrics |
+| 2026-02-19 | Validation: Case-insensitive matching | Evidence/keyword presence più robusto (quote text normalization) |
 
 ---
 

@@ -1,0 +1,82 @@
+[
+  {
+    "candidate_id": "hash_001_contratto",
+    "term": "contratto",
+    "lemma": "contratto",
+    "count": 2,
+    "source": "subject+body",
+    "score": 8.5
+  },
+  {
+    "candidate_id": "hash_002_informazioni",
+    "term": "informazioni",
+    "lemma": "informazione",
+    "count": 1,
+    "source": "subject",
+    "score": 7.2
+  },
+  {
+    "candidate_id": "hash_003_richiesta",
+    "term": "richiesta",
+    "lemma": "richiesta",
+    "count": 1,
+    "source": "subject",
+    "score": 7.0
+  },
+  {
+    "candidate_id": "hash_004_documento",
+    "term": "documento",
+    "lemma": "documento",
+    "count": 1,
+    "source": "body",
+    "score": 6.8
+  },
+  {
+    "candidate_id": "hash_005_firmato",
+    "term": "firmato",
+    "lemma": "firmare",
+    "count": 1,
+    "source": "body",
+    "score": 6.5
+  },
+  {
+    "candidate_id": "hash_006_dati",
+    "term": "dati",
+    "lemma": "dato",
+    "count": 1,
+    "source": "body",
+    "score": 5.8
+  },
+  {
+    "candidate_id": "hash_007_confermare",
+    "term": "confermare",
+    "lemma": "confermare",
+    "count": 1,
+    "source": "body",
+    "score": 5.5
+  },
+  {
+    "candidate_id": "hash_008_allegato",
+    "term": "allegato",
+    "lemma": "allegato",
+    "count": 1,
+    "source": "body",
+    "score": 5.2
+  },
+  {
+    "candidate_id": "hash_009_risposta",
+    "term": "risposta",
+    "lemma": "risposta",
+    "count": 1,
+    "source": "body",
+    "score": 4.9
+  },
+  {
+    "candidate_id": "hash_010_grazie",
+    "term": "grazie",
+    "lemma": "grazie",
+    "count": 1,
+    "source": "body",
+    "score": 3.5
+  }
+]

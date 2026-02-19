@@ -1,0 +1,46 @@
+{
+  "dictionaryversion": 1,
+  "sentiment": {
+    "value": "neutral",
+    "confidence": 0.8
+  },
+  "priority": {
+    "value": "medium",
+    "confidence": 0.7,
+    "signals": ["test"]
+  },
+  "topics": [
+    {
+      "labelid": "CONTRATTO",
+      "confidence": 0.9,
+      "keywordsintext": [
+        {
+          "candidateid": "hash_INVENTED_KEYWORD_NOT_IN_CANDIDATES",
+          "lemma": "invented",
+          "count": 1
+        }
+      ],
+      "evidence": [
+        {
+          "quote": "test evidence"
+        }
+      ]
+    },
+    {
+      "labelid": "INVALID_TOPIC_NOT_IN_ENUM",
+      "confidence": 0.8,
+      "keywordsintext": [
+        {
+          "candidateid": "hash_001_contratto",
+          "lemma": "contratto",
+          "count": 1
+        }
+      ],
+      "evidence": [
+        {
+          "quote": "test evidence 2"
+        }
+      ]
+    }
+  ]
+}

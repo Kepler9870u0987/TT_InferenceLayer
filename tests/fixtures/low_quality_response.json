@@ -1,0 +1,60 @@
+{
+  "dictionaryversion": 1,
+  "sentiment": {
+    "value": "neutral",
+    "confidence": 0.05
+  },
+  "priority": {
+    "value": "medium",
+    "confidence": 0.08,
+    "signals": []
+  },
+  "topics": [
+    {
+      "labelid": "CONTRATTO",
+      "confidence": 0.12,
+      "keywordsintext": [
+        {
+          "candidateid": "hash_001_contratto",
+          "lemma": "contratto",
+          "count": 1
+        },
+        {
+          "candidateid": "hash_001_contratto",
+          "lemma": "contratto",
+          "count": 1
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "labelid": "CONTRATTO",
+      "confidence": 0.15,
+      "keywordsintext": [],
+      "evidence": [
+        {
+          "quote": "Duplicate quote"
+        },
+        {
+          "quote": "Duplicate quote"
+        }
+      ]
+    },
+    {
+      "labelid": "DOCUMENTI",
+      "confidence": 0.3,
+      "keywordsintext": [
+        {
+          "candidateid": "hash_004_documento",
+          "lemma": "documento",
+          "count": 1
+        }
+      ],
+      "evidence": [
+        {
+          "quote": "This is a very long evidence quote that approaches the maximum length of 200 characters allowed by the schema and should trigger a warning about being suspiciously long and close to the limit set"
+        }
+      ]
+    }
+  ]
+}
