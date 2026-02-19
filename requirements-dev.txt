@@ -1,0 +1,29 @@
+# ====================================================================
+# TT InferenceLayer - Development Dependencies
+# ====================================================================
+# Generated from pyproject.toml
+# Install with: pip install -r requirements-dev.txt
+# This includes both production and development dependencies
+# ====================================================================
+
+# Include production dependencies
+-r requirements.txt
+
+# ====================================================================
+# Development-Only Dependencies
+# ====================================================================
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.1.0
+pytest-mock>=3.12.0
+
+# Code Quality
+ruff>=0.2.0
+mypy>=1.8.0
+black>=24.0.0
+
+# Type Stubs
+types-redis>=4.6.0
+types-jsonschema>=4.21.0
