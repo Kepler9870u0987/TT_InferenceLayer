@@ -138,10 +138,10 @@ async def test_retry_engine_success_with_real_ollama():
     )
     
     prompt_builder = PromptBuilder(
-        schema_path=settings.JSON_SCHEMA_PATH,
-        prompts_dir=settings.PROMPT_TEMPLATES_DIR,
-        temperature=settings.LLM_TEMPERATURE,
-        max_tokens=settings.LLM_MAX_TOKENS,
+        templates_dir=Path(settings.PROMPT_TEMPLATES_DIR),
+        schema_path=Path(settings.JSON_SCHEMA_PATH),
+        default_temperature=settings.LLM_TEMPERATURE,
+        default_max_tokens=settings.LLM_MAX_TOKENS,
         body_truncation_limit=settings.BODY_TRUNCATION_LIMIT,
         candidate_top_n=settings.CANDIDATE_TOP_N,
         shrink_body_limit=settings.SHRINK_BODY_LIMIT,
@@ -200,10 +200,10 @@ async def test_retry_engine_shrink_mode_with_real_ollama():
     )
     
     prompt_builder = PromptBuilder(
-        schema_path=settings.JSON_SCHEMA_PATH,
-        prompts_dir=settings.PROMPT_TEMPLATES_DIR,
-        temperature=settings.LLM_TEMPERATURE,
-        max_tokens=settings.LLM_MAX_TOKENS,
+        templates_dir=Path(settings.PROMPT_TEMPLATES_DIR),
+        schema_path=Path(settings.JSON_SCHEMA_PATH),
+        default_temperature=settings.LLM_TEMPERATURE,
+        default_max_tokens=settings.LLM_MAX_TOKENS,
         body_truncation_limit=settings.BODY_TRUNCATION_LIMIT,
         candidate_top_n=settings.CANDIDATE_TOP_N,
         shrink_body_limit=settings.SHRINK_BODY_LIMIT,
@@ -260,10 +260,10 @@ async def test_retry_engine_with_invalid_json_fixture():
     )
     
     prompt_builder = PromptBuilder(
-        schema_path=settings.JSON_SCHEMA_PATH,
-        prompts_dir=settings.PROMPT_TEMPLATES_DIR,
-        temperature=settings.LLM_TEMPERATURE,
-        max_tokens=settings.LLM_MAX_TOKENS,
+        templates_dir=Path(settings.PROMPT_TEMPLATES_DIR),
+        schema_path=Path(settings.JSON_SCHEMA_PATH),
+        default_temperature=settings.LLM_TEMPERATURE,
+        default_max_tokens=settings.LLM_MAX_TOKENS,
         body_truncation_limit=settings.BODY_TRUNCATION_LIMIT,
         candidate_top_n=settings.CANDIDATE_TOP_N,
         shrink_body_limit=settings.SHRINK_BODY_LIMIT,
@@ -340,10 +340,10 @@ async def test_retry_engine_all_strategies_exhausted():
     )
     
     prompt_builder = PromptBuilder(
-        schema_path=settings.JSON_SCHEMA_PATH,
-        prompts_dir=settings.PROMPT_TEMPLATES_DIR,
-        temperature=settings.LLM_TEMPERATURE,
-        max_tokens=settings.LLM_MAX_TOKENS,
+        templates_dir=Path(settings.PROMPT_TEMPLATES_DIR),
+        schema_path=Path(settings.JSON_SCHEMA_PATH),
+        default_temperature=settings.LLM_TEMPERATURE,
+        default_max_tokens=settings.LLM_MAX_TOKENS,
         body_truncation_limit=settings.BODY_TRUNCATION_LIMIT,
         candidate_top_n=settings.CANDIDATE_TOP_N,
         shrink_body_limit=settings.SHRINK_BODY_LIMIT,
@@ -409,10 +409,10 @@ async def test_retry_engine_latency_tracking():
     )
     
     prompt_builder = PromptBuilder(
-        schema_path=settings.JSON_SCHEMA_PATH,
-        prompts_dir=settings.PROMPT_TEMPLATES_DIR,
-        temperature=settings.LLM_TEMPERATURE,
-        max_tokens=settings.LLM_MAX_TOKENS,
+        templates_dir=Path(settings.PROMPT_TEMPLATES_DIR),
+        schema_path=Path(settings.JSON_SCHEMA_PATH),
+        default_temperature=settings.LLM_TEMPERATURE,
+        default_max_tokens=settings.LLM_MAX_TOKENS,
         body_truncation_limit=settings.BODY_TRUNCATION_LIMIT,
         candidate_top_n=settings.CANDIDATE_TOP_N,
         shrink_body_limit=settings.SHRINK_BODY_LIMIT,

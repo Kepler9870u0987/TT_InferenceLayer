@@ -7,7 +7,12 @@ import pytest
 from unittest.mock import Mock, AsyncMock
 from datetime import datetime
 
-from inference_layer.models.llm_models import LLMGenerationResponse, LLMMetadata
+from inference_layer.models.llm_models import (
+    ChatMessage,
+    LLMGenerationRequest,
+    LLMGenerationResponse,
+    LLMMetadata,
+)
 
 
 @pytest.fixture
@@ -118,6 +123,30 @@ def mock_prompt_builder():
     mock.default_temperature = 0.1
     mock.default_max_tokens = 2048
     mock.json_schema = {"type": "object"}
+    
+    # build_full_request returns (LLMGenerationRequest, metadata)
+    def _build_full_request(request, shrink_mode=False, model=None, temperature=None, max_tokens=None):
+        llm_request = LLMGenerationRequest(
+            messages=[
+                ChatMessage(role="system", content="System prompt"),
+                ChatMessage(role="user", content="User prompt"),
+            ],
+            model=model or "qwen2.5:7b",
+            temperature=temperature if temperature is not None else 0.1,
+            max_tokens=max_tokens or 2048,
+            format_schema={"type": "object"},
+            stream=False,
+        )
+        metadata = {
+            "candidates_count": 10,
+            "total_messages_length": 30,
+            "shrink_mode": shrink_mode,
+            "model": model or "qwen2.5:7b",
+            "schema_included": True,
+        }
+        return llm_request, metadata
+    
+    mock.build_full_request = Mock(side_effect=_build_full_request)
     
     return mock
 

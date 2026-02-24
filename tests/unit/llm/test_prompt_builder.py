@@ -182,7 +182,7 @@ class TestPromptBuilder:
         assert metadata["truncated_body_length"] <= 100
     
     def test_build_full_request(self, prompt_builder, triage_request):
-        """Should build complete LLMGenerationRequest."""
+        """Should build complete LLMGenerationRequest with messages[]."""
         llm_request, metadata = prompt_builder.build_full_request(triage_request)
         
         # Check LLMGenerationRequest fields
@@ -192,14 +192,22 @@ class TestPromptBuilder:
         assert llm_request.stream is False
         assert llm_request.format_schema is not None
         
-        # Check prompt contains both system and user
-        assert "AI assistant" in llm_request.prompt
-        assert "DICTIONARY VERSION" in llm_request.prompt
+        # Check messages[] structure
+        assert len(llm_request.messages) == 2
+        assert llm_request.messages[0].role == "system"
+        assert llm_request.messages[1].role == "user"
+        
+        # Check system prompt content
+        assert "AI assistant" in llm_request.messages[0].content
+        assert "JSON schema" in llm_request.messages[0].content
+        
+        # Check user prompt content
+        assert "DICTIONARY VERSION" in llm_request.messages[1].content
         
         # Check metadata
         assert metadata["model"] == "test-model"
         assert metadata["schema_included"]
-        assert metadata["full_prompt_length"] > 0
+        assert metadata["total_messages_length"] > 0
     
     def test_pii_redaction_when_enabled(self, prompt_builder, triage_request):
         """Should apply PII redaction when enabled."""

@@ -11,7 +11,7 @@ import pytest
 import asyncio
 import httpx
 from inference_layer.llm.ollama_client import OllamaClient
-from inference_layer.models.llm_models import LLMGenerationRequest
+from inference_layer.models.llm_models import ChatMessage, LLMGenerationRequest
 from inference_layer.llm.exceptions import LLMConnectionError, LLMModelNotAvailableError
 
 
@@ -80,7 +80,9 @@ async def test_ollama_generate_simple_json(ollama_available, ollama_client):
     model = models[0]
     
     request = LLMGenerationRequest(
-        prompt='Return JSON with a single field "message" set to "Hello, World!"',
+        messages=[
+            ChatMessage(role="user", content='Return JSON with a single field "message" set to "Hello, World!"'),
+        ],
         model=model,
         temperature=0.1,
         max_tokens=50,
@@ -120,7 +122,9 @@ async def test_ollama_generate_with_schema(ollama_available, ollama_client):
     }
     
     request = LLMGenerationRequest(
-        prompt='Analyze sentiment of: "This is great news!" Return JSON with sentiment field.',
+        messages=[
+            ChatMessage(role="user", content='Analyze sentiment of: "This is great news!" Return JSON with sentiment field.'),
+        ],
         model=model,
         temperature=0.1,
         max_tokens=50,
@@ -142,7 +146,9 @@ async def test_ollama_generate_with_schema(ollama_available, ollama_client):
 async def test_ollama_model_not_found(ollama_available, ollama_client):
     """Test error handling for non-existent model."""
     request = LLMGenerationRequest(
-        prompt="Test",
+        messages=[
+            ChatMessage(role="user", content="Test"),
+        ],
         model="nonexistent-model:999",
         temperature=0.1,
         max_tokens=50,

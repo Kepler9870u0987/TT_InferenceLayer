@@ -21,6 +21,7 @@ from inference_layer.models.input_models import (
     TriageRequest,
 )
 from inference_layer.models.llm_models import (
+    ChatMessage,
     LLMGenerationRequest,
     LLMGenerationResponse,
 )
@@ -136,12 +137,27 @@ def create_mock_validated_response() -> EmailTriageResponse:
 def create_mock_prompt_builder() -> MagicMock:
     """Create a properly configured mock PromptBuilder."""
     mock_builder = MagicMock(spec=PromptBuilder)
-    mock_builder.build_system_prompt.return_value = "System prompt"
-    mock_builder.build_user_prompt.return_value = ("User prompt", {"candidates_count": 2})
     mock_builder.default_temperature = 0.1
     mock_builder.default_max_tokens = 2048
     mock_builder.default_model = "test_model"
     mock_builder.json_schema = {}
+
+    def _build_full_request(request, shrink_mode=False, model=None, temperature=None, max_tokens=None):
+        llm_request = LLMGenerationRequest(
+            messages=[
+                ChatMessage(role="system", content="System prompt"),
+                ChatMessage(role="user", content="User prompt"),
+            ],
+            model=model or "test_model",
+            temperature=temperature if temperature is not None else 0.1,
+            max_tokens=max_tokens or 2048,
+            format_schema={},
+            stream=False,
+        )
+        metadata = {"candidates_count": 2, "total_messages_length": 30, "shrink_mode": shrink_mode}
+        return llm_request, metadata
+
+    mock_builder.build_full_request = MagicMock(side_effect=_build_full_request)
     return mock_builder
 
 
@@ -162,11 +178,23 @@ async def test_standard_retry_success_first_attempt():
     mock_client.generate = AsyncMock(return_value=create_mock_llm_response())
 
     mock_builder = MagicMock(spec=PromptBuilder)
-    mock_builder.build_system_prompt.return_value = "System prompt"
-    mock_builder.build_user_prompt.return_value = ("User prompt", {"candidates_count": 2})
-    mock_builder.temperature = 0.1
-    mock_builder.max_tokens = 2048
-    mock_builder.json_schema = {}
+
+    def _build_full_request(request, shrink_mode=False, model=None, temperature=None, max_tokens=None):
+        llm_request = LLMGenerationRequest(
+            messages=[
+                ChatMessage(role="system", content="System prompt"),
+                ChatMessage(role="user", content="User prompt"),
+            ],
+            model=model or "test_model",
+            temperature=temperature if temperature is not None else 0.1,
+            max_tokens=max_tokens or 2048,
+            format_schema={},
+            stream=False,
+        )
+        metadata = {"candidates_count": 2, "total_messages_length": 30, "shrink_mode": shrink_mode}
+        return llm_request, metadata
+
+    mock_builder.build_full_request = MagicMock(side_effect=_build_full_request)
 
     mock_validator = AsyncMock(spec=ValidationPipeline)
     mock_validator.validate = AsyncMock(
@@ -191,7 +219,7 @@ async def test_standard_retry_success_first_attempt():
     assert warnings == []
     mock_client.generate.assert_called_once()
     mock_validator.validate.assert_called_once()
-    mock_builder.build_user_prompt.assert_called_once_with(request, shrink_mode=False)
+    mock_builder.build_full_request.assert_called_once_with(request, shrink_mode=False)
 
 
 @pytest.mark.asyncio
@@ -205,12 +233,7 @@ async def test_standard_retry_success_second_attempt():
     mock_client.model = "test_model"
     mock_client.generate = AsyncMock(return_value=create_mock_llm_response())
 
-    mock_builder = MagicMock(spec=PromptBuilder)
-    mock_builder.build_system_prompt.return_value = "System prompt"
-    mock_builder.build_user_prompt.return_value = ("User prompt", {})
-    mock_builder.temperature = 0.1
-    mock_builder.max_tokens = 2048
-    mock_builder.json_schema = {}
+    mock_builder = create_mock_prompt_builder()
 
     mock_validator = AsyncMock(spec=ValidationPipeline)
     mock_validator.validate = AsyncMock(
@@ -218,7 +241,7 @@ async def test_standard_retry_success_second_attempt():
     )
 
     request = create_test_request()
-    previous_error = JSONParseError("Invalid JSON", {"content_snippet": "bad json"})
+    previous_error = JSONParseError("Invalid JSON", raw_content="bad json")
 
     # Execute on attempt 2 (backoff should be applied)
     start_time = asyncio.get_event_loop().time()
@@ -248,12 +271,7 @@ async def test_standard_retry_validation_failure():
     mock_client.model = "test_model"
     mock_client.generate = AsyncMock(return_value=create_mock_llm_response())
 
-    mock_builder = MagicMock(spec=PromptBuilder)
-    mock_builder.build_system_prompt.return_value = "System prompt"
-    mock_builder.build_user_prompt.return_value = ("User prompt", {})
-    mock_builder.temperature = 0.1
-    mock_builder.max_tokens = 2048
-    mock_builder.json_schema = {}
+    mock_builder = create_mock_prompt_builder()
 
     mock_validator = AsyncMock(spec=ValidationPipeline)
     mock_validator.validate = AsyncMock(
@@ -294,12 +312,7 @@ async def test_standard_retry_no_backoff_first_attempt():
     mock_client.model = "test_model"
     mock_client.generate = AsyncMock(return_value=create_mock_llm_response())
 
-    mock_builder = MagicMock(spec=PromptBuilder)
-    mock_builder.build_system_prompt.return_value = "System prompt"
-    mock_builder.build_user_prompt.return_value = ("User prompt", {})
-    mock_builder.temperature = 0.1
-    mock_builder.max_tokens = 2048
-    mock_builder.json_schema = {}
+    mock_builder = create_mock_prompt_builder()
 
     mock_validator = AsyncMock(spec=ValidationPipeline)
     mock_validator.validate = AsyncMock(
@@ -340,15 +353,7 @@ async def test_shrink_retry_uses_shrink_mode():
     mock_client.model = "test_model"
     mock_client.generate = AsyncMock(return_value=create_mock_llm_response())
 
-    mock_builder = MagicMock(spec=PromptBuilder)
-    mock_builder.build_system_prompt.return_value = "System prompt"
-    mock_builder.build_user_prompt.return_value = (
-        "User prompt (shrunk)",
-        {"candidates_count": 25, "body_length": 2000, "shrink_mode": True},
-    )
-    mock_builder.temperature = 0.1
-    mock_builder.max_tokens = 2048
-    mock_builder.json_schema = {}
+    mock_builder = create_mock_prompt_builder()
 
     mock_validator = AsyncMock(spec=ValidationPipeline)
     mock_validator.validate = AsyncMock(
@@ -367,8 +372,8 @@ async def test_shrink_retry_uses_shrink_mode():
         attempt=1,
     )
 
-    # Verify shrink_mode=True was called
-    mock_builder.build_user_prompt.assert_called_once_with(request, shrink_mode=True)
+    # Verify shrink_mode=True was called via build_full_request
+    mock_builder.build_full_request.assert_called_once_with(request, shrink_mode=True)
     assert validated_response is not None
 
 
@@ -399,12 +404,7 @@ async def test_fallback_model_success():
     mock_client.model = "primary_model"
     mock_client.generate = AsyncMock(return_value=create_mock_llm_response())
 
-    mock_builder = MagicMock(spec=PromptBuilder)
-    mock_builder.build_system_prompt.return_value = "System prompt"
-    mock_builder.build_user_prompt.return_value = ("User prompt", {})
-    mock_builder.temperature = 0.1
-    mock_builder.max_tokens = 2048
-    mock_builder.json_schema = {}
+    mock_builder = create_mock_prompt_builder()
 
     mock_validator = AsyncMock(spec=ValidationPipeline)
     mock_validator.validate = AsyncMock(
@@ -441,12 +441,7 @@ async def test_fallback_model_cycles_through_models():
     mock_client.model = "primary_model"
     mock_client.generate = AsyncMock(return_value=create_mock_llm_response())
 
-    mock_builder = MagicMock(spec=PromptBuilder)
-    mock_builder.build_system_prompt.return_value = "System prompt"
-    mock_builder.build_user_prompt.return_value = ("User prompt", {})
-    mock_builder.temperature = 0.1
-    mock_builder.max_tokens = 2048
-    mock_builder.json_schema = {}
+    mock_builder = create_mock_prompt_builder()
 
     mock_validator = AsyncMock(spec=ValidationPipeline)
     mock_validator.validate = AsyncMock(
@@ -483,18 +478,15 @@ async def test_fallback_model_no_models_configured():
     mock_validator = AsyncMock(spec=ValidationPipeline)
 
     request = create_test_request()
-    previous_error = SchemaValidationError(
-        "Schema validation failed", {"validation_errors": []}
-    )
 
-    # Execute - should raise ValueError
+    # Execute - should raise ValueError (no previous error, no models)
     with pytest.raises(ValueError, match="No fallback models configured"):
         await strategy.execute(
             request=request,
             client=mock_client,
             prompt_builder=mock_builder,
             validator=mock_validator,
-            error=previous_error,
+            error=None,
             attempt=1,
         )
 
@@ -541,12 +533,7 @@ async def test_exponential_backoff_timing():
     mock_client.model = "test_model"
     mock_client.generate = AsyncMock(return_value=create_mock_llm_response())
 
-    mock_builder = MagicMock(spec=PromptBuilder)
-    mock_builder.build_system_prompt.return_value = "System prompt"
-    mock_builder.build_user_prompt.return_value = ("User prompt", {})
-    mock_builder.temperature = 0.1
-    mock_builder.max_tokens = 2048
-    mock_builder.json_schema = {}
+    mock_builder = create_mock_prompt_builder()
 
     mock_validator = AsyncMock(spec=ValidationPipeline)
     mock_validator.validate = AsyncMock(
