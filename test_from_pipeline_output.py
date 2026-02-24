@@ -19,8 +19,8 @@ from pathlib import Path
 import httpx
 from jinja2 import Environment, FileSystemLoader
 
-if sys.platform == "win32":
-    sys.stdout.reconfigure(encoding="utf-8")
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
 
 # ── Load pipeline_last_output.json ────────────────────────────────────────────
 PIPELINE_OUTPUT = Path("pipeline_last_output.json")
@@ -249,7 +249,7 @@ async def run_test() -> None:
     print("=" * 80)
 
     try:
-        async with httpx.AsyncClient(timeout=300.0) as client:
+        async with httpx.AsyncClient(timeout=600.0) as client:
             print("\nSending /api/chat request to Ollama …", flush=True)
             t0 = time.time()
             response = await client.post(ollama_url, json=chat_payload)
@@ -341,7 +341,7 @@ async def run_test() -> None:
         print(f"\nERROR: cannot connect to {OLLAMA_URL}")
         print("  Make sure Ollama is running:  ollama serve")
     except httpx.TimeoutException:
-        print("\nERROR: request timed out (300 s)")
+        print("\nERROR: request timed out (600 s)")
     except Exception as exc:
         print(f"\nERROR: {type(exc).__name__}: {exc}")
 
