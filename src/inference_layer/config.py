@@ -39,12 +39,13 @@ class Settings(BaseSettings):
     
     # === Input Processing ===
     BODY_TRUNCATION_LIMIT: int = 8000  # chars
-    CANDIDATE_TOP_N: int = 100  # Number of candidate keywords to include in prompt
+    CANDIDATE_TOP_N: int = 10  # Number of candidate keywords to include in prompt (pre-filtered)
+    CANDIDATE_DEDUP_ENABLED: bool = True  # Deduplicate overlapping candidate lemmas
     
     # === Retry & Fallback ===
     MAX_RETRIES: int = 3
     RETRY_BACKOFF_BASE: float = 2.0  # Exponential backoff multiplier
-    SHRINK_TOP_N: int = 50  # Reduced top-N for retry with smaller request
+    SHRINK_TOP_N: int = 8  # Reduced top-N for retry with smaller request
     SHRINK_BODY_LIMIT: int = 4000  # Reduced body limit for retry
     
     # === PII Redaction ===
@@ -71,6 +72,7 @@ class Settings(BaseSettings):
     # === Validation ===
     JSON_SCHEMA_PATH: str = "config/schema/email_triage_v2.json"
     PROMPT_TEMPLATES_DIR: str = "config/prompts"
+    PROMPT_TEMPLATE_MODE: str = "standard"  # standard | minimal (Level 5 quantized models)
     MIN_CONFIDENCE_WARNING_THRESHOLD: float = 0.2  # Warn if topic confidence < this
     ENABLE_EVIDENCE_PRESENCE_CHECK: bool = True
     ENABLE_KEYWORD_PRESENCE_CHECK: bool = True

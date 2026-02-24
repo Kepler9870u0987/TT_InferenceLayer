@@ -67,10 +67,12 @@ def get_prompt_builder() -> PromptBuilder:
         shrink_body_limit=settings.SHRINK_BODY_LIMIT,
         candidate_top_n=settings.CANDIDATE_TOP_N,
         shrink_top_n=settings.SHRINK_TOP_N,
+        candidate_dedup_enabled=settings.CANDIDATE_DEDUP_ENABLED,
         redact_for_llm=settings.REDACT_FOR_LLM,
         default_model=settings.OLLAMA_MODEL,  # Pass model from settings
         default_temperature=settings.LLM_TEMPERATURE,
         default_max_tokens=settings.LLM_MAX_TOKENS,
+        template_mode=settings.PROMPT_TEMPLATE_MODE,
     )
 
 

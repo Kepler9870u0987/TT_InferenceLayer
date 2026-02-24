@@ -1,0 +1,12 @@
+V:{{ dictionary_version }}
+S:{{ subject }}
+F:{{ from_addr }}
+---
+{{ body }}
+---
+TOPICS:{% for topic in allowed_topics %} {{ topic }}{% endfor %}
+
+KW:
+{% for candidate in candidate_keywords -%}
+{{ candidate.candidate_id }}:{{ candidate.term }}
+{% endfor %}

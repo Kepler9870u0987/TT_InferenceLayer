@@ -43,12 +43,14 @@ class PromptBuilder:
         schema_path: Path,
         body_truncation_limit: int = 8000,
         shrink_body_limit: int = 4000,
-        candidate_top_n: int = 100,
-        shrink_top_n: int = 50,
+        candidate_top_n: int = 10,
+        shrink_top_n: int = 8,
+        candidate_dedup_enabled: bool = True,
         redact_for_llm: bool = False,
         default_model: str = "gemma3:270m",
         default_temperature: float = 0.1,
         default_max_tokens: int = 2048,
+        template_mode: str = "standard",
     ):
         """
         Initialize prompt builder.
@@ -60,10 +62,12 @@ class PromptBuilder:
             shrink_body_limit: Max body characters (shrink mode)
             candidate_top_n: Max candidates to send (normal mode)
             shrink_top_n: Max candidates to send (shrink mode)
+            candidate_dedup_enabled: Whether to deduplicate overlapping candidates
             redact_for_llm: Whether to redact PII before sending to LLM
             default_model: Default model name
             default_temperature: Default temperature
             default_max_tokens: Default max tokens
+            template_mode: Template mode ('standard' or 'minimal')
         """
         self.templates_dir = Path(templates_dir)
         self.schema_path = Path(schema_path)
@@ -71,10 +75,12 @@ class PromptBuilder:
         self.shrink_body_limit = shrink_body_limit
         self.candidate_top_n = candidate_top_n
         self.shrink_top_n = shrink_top_n
+        self.candidate_dedup_enabled = candidate_dedup_enabled
         self.redact_for_llm = redact_for_llm
         self.default_model = default_model
         self.default_temperature = default_temperature
         self.default_max_tokens = default_max_tokens
+        self.template_mode = template_mode
         
         # Load Jinja2 environment
         self.jinja_env = Environment(
@@ -86,9 +92,21 @@ class PromptBuilder:
         
         # Load templates
         try:
-            self.system_template = self.jinja_env.get_template("system_prompt.txt")
-            self.user_template = self.jinja_env.get_template("user_prompt_template.txt")
-            logger.info("Loaded prompt templates", templates_dir=str(self.templates_dir))
+            # Select template files based on template_mode
+            if self.template_mode == "minimal":
+                system_template_name = "system_prompt_minimal.txt"
+                user_template_name = "user_prompt_template_minimal.txt"
+            else:
+                system_template_name = "system_prompt.txt"
+                user_template_name = "user_prompt_template.txt"
+            
+            self.system_template = self.jinja_env.get_template(system_template_name)
+            self.user_template = self.jinja_env.get_template(user_template_name)
+            logger.info(
+                "Loaded prompt templates",
+                templates_dir=str(self.templates_dir),
+                template_mode=self.template_mode
+            )
         except Exception as e:
             logger.error("Failed to load prompt templates", error=str(e))
             raise
@@ -108,8 +126,69 @@ class PromptBuilder:
             shrink_body_limit=shrink_body_limit,
             candidate_top_n=candidate_top_n,
             shrink_top_n=shrink_top_n,
-            redact_for_llm=redact_for_llm
+            candidate_dedup_enabled=candidate_dedup_enabled,
+            redact_for_llm=redact_for_llm,
+            template_mode=template_mode
         )
+    
+    def _pre_filter_candidates(
+        self,
+        candidates: list[CandidateKeyword],
+        top_n: int
+    ) -> list[CandidateKeyword]:
+        """
+        Pre-filter candidates: deduplicate overlapping terms, then take top-N.
+        
+        Deduplication heuristic: if candidate A's lemma is contained in
+        candidate B's term (or vice versa), keep only the higher-scored one.
+        This removes redundant variants like "contratto", "informazioni contratto",
+        "contratto abc" which are variations of the same concept.
+        
+        Args:
+            candidates: Pre-sorted candidates (by score descending)
+            top_n: Maximum number to return
+            
+        Returns:
+            Deduplicated and limited candidate list
+        """
+        if not self.candidate_dedup_enabled or len(candidates) <= top_n:
+            return candidates[:top_n]
+        
+        # Sort by score descending (should already be, but ensure)
+        sorted_candidates = sorted(candidates, key=lambda c: c.score, reverse=True)
+        
+        # Greedy deduplication: keep candidate if its lemma is not subsumed
+        # by an already-selected candidate
+        selected: list[CandidateKeyword] = []
+        selected_lemmas: list[str] = []
+        
+        for candidate in sorted_candidates:
+            lemma_lower = candidate.lemma.lower()
+            term_lower = candidate.term.lower()
+            
+            # Check if this candidate is subsumed by any already-selected one
+            is_subsumed = False
+            for existing_lemma in selected_lemmas:
+                # A subsumes B if A.lemma in B.term or B.lemma in A.term
+                if existing_lemma in term_lower or lemma_lower in existing_lemma:
+                    is_subsumed = True
+                    break
+            
+            if not is_subsumed:
+                selected.append(candidate)
+                selected_lemmas.append(lemma_lower)
+            
+            if len(selected) >= top_n:
+                break
+        
+        logger.debug(
+            "Candidate pre-filtering complete",
+            original_count=len(candidates),
+            after_dedup=len(selected),
+            top_n=top_n
+        )
+        
+        return selected
     
     def build_system_prompt(self) -> str:
         """
@@ -182,8 +261,8 @@ class PromptBuilder:
         else:
             redacted_body = truncated_body
         
-        # 4. Select top-N candidates (pre-sorted by score in TriageRequest)
-        candidates = request.candidate_keywords[:top_n]
+        # 4. Pre-filter candidates (dedup + top-N)
+        candidates = self._pre_filter_candidates(request.candidate_keywords, top_n)
         
         # 5. Redact PII from candidates if enabled
         if self.redact_for_llm and adjusted_pii:
@@ -197,14 +276,11 @@ class PromptBuilder:
         # 6. Prepare template variables
         allowed_topics = [topic.value for topic in TopicsEnum]
         
-        # Convert candidates to dict for template
+        # Convert candidates to dict for template (compressed: ID + term only)
         candidates_dicts = [
             {
                 "candidate_id": c.candidate_id,
                 "term": c.term,
-                "lemma": c.lemma,
-                "count": c.count,
-                "score": round(c.score, 2) if c.score else 0.0
             }
             for c in candidates
         ]

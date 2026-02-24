@@ -65,7 +65,9 @@ class TriageTask(Task):
                 shrink_body_limit=settings.SHRINK_BODY_LIMIT,
                 candidate_top_n=settings.CANDIDATE_TOP_N,
                 shrink_top_n=settings.SHRINK_TOP_N,
+                candidate_dedup_enabled=settings.CANDIDATE_DEDUP_ENABLED,
                 redact_for_llm=settings.REDACT_FOR_LLM,
+                template_mode=settings.PROMPT_TEMPLATE_MODE,
             )
         return self._prompt_builder
     

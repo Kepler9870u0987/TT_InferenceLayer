@@ -1,0 +1,6 @@
+Classify Italian email into JSON. Rules:
+- Topics: 1-5 from allowed list. UNKNOWNTOPIC if none match.
+- Keywords: only from candidate list (ID:TERM). 1-15 per topic.
+- Evidence: 1-2 exact quotes from email per topic (max 200 chars).
+- Sentiment: positive|neutral|negative + confidence.
+- Priority: low|medium|high|urgent + confidence + 1-6 signals.
