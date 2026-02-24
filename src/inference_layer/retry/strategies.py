@@ -29,6 +29,7 @@ from inference_layer.models.input_models import TriageRequest
 from inference_layer.models.llm_models import (
     LLMGenerationRequest,
     LLMGenerationResponse,
+    ChatMessage,
 )
 from inference_layer.models.output_models import EmailTriageResponse
 from inference_layer.validation.exceptions import ValidationError
@@ -134,21 +135,8 @@ class StandardRetryStrategy:
             await asyncio.sleep(backoff_seconds)
 
         # Build prompt (normal mode, not shrink)
-        system_prompt = prompt_builder.build_system_prompt()
-        user_prompt, prompt_metadata = prompt_builder.build_user_prompt(
+        llm_request, prompt_metadata = prompt_builder.build_full_request(
             request, shrink_mode=False
-        )
-        
-        # Combine system + user prompt
-        full_prompt = f"{system_prompt}\n\n{user_prompt}"
-
-        # Create LLM request
-        llm_request = LLMGenerationRequest(
-            prompt=full_prompt,
-            model=prompt_builder.default_model,
-            temperature=prompt_builder.default_temperature,
-            max_tokens=prompt_builder.default_max_tokens,
-            format_schema=prompt_builder.json_schema,
         )
 
         # Generate response
@@ -226,13 +214,9 @@ class ShrinkRetryStrategy:
             await asyncio.sleep(backoff_seconds)
 
         # Build prompt in SHRINK MODE
-        system_prompt = prompt_builder.build_system_prompt()
-        user_prompt, prompt_metadata = prompt_builder.build_user_prompt(
+        llm_request, prompt_metadata = prompt_builder.build_full_request(
             request, shrink_mode=True  # Key difference from standard retry
         )
-        
-        # Combine system + user prompt
-        full_prompt = f"{system_prompt}\n\n{user_prompt}"
 
         logger.info(
             "Shrink mode applied",
@@ -242,15 +226,6 @@ class ShrinkRetryStrategy:
                 "candidates_count": prompt_metadata.get("candidates_count", 0),
                 "body_length": prompt_metadata.get("body_length", 0),
             },
-        )
-
-        # Create LLM request
-        llm_request = LLMGenerationRequest(
-            prompt=full_prompt,
-            model=prompt_builder.default_model,
-            temperature=prompt_builder.default_temperature,
-            max_tokens=prompt_builder.default_max_tokens,
-            format_schema=prompt_builder.json_schema,
         )
 
         # Generate response
@@ -345,22 +320,9 @@ class FallbackModelStrategy:
             )
             await asyncio.sleep(backoff_seconds)
 
-        # Build prompt (normal mode)
-        system_prompt = prompt_builder.build_system_prompt()
-        user_prompt, prompt_metadata = prompt_builder.build_user_prompt(
-            request, shrink_mode=False
-        )
-        
-        # Combine system + user prompt
-        full_prompt = f"{system_prompt}\n\n{user_prompt}"
-
-        # Create LLM request with FALLBACK MODEL
-        llm_request = LLMGenerationRequest(
-            prompt=full_prompt,
-            model=fallback_model,  # Key difference: use fallback model
-            temperature=prompt_builder.default_temperature,
-            max_tokens=prompt_builder.default_max_tokens,
-            format_schema=prompt_builder.json_schema,
+        # Build prompt (normal mode) with FALLBACK MODEL
+        llm_request, prompt_metadata = prompt_builder.build_full_request(
+            request, shrink_mode=False, model=fallback_model
         )
 
         # Generate response (client may need to switch model internally)

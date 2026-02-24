@@ -81,7 +81,9 @@ class SGLangClient(BaseLLMClient):
 # TODO: Implementation checklist when ready for SGLang migration
 # [ ] Install sglang package and dependencies
 # [ ] Set up SGLang server in docker-compose.yml
-# [ ] Implement generate() method with /generate or /v1/completions endpoint
+# [ ] Implement generate() method with /v1/chat/completions endpoint
+#     - Convert request.messages[] to OpenAI-compatible chat format
+#     - Map format_schema to SGLang's constrained decoding
 # [ ] Test JSON schema constraint mode (constrained decoding)
 # [ ] Implement health_check() via /health or /v1/models endpoint
 # [ ] Implement get_model_info() for PipelineVersion tracking

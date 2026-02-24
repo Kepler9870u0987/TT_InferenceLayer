@@ -28,6 +28,7 @@ from inference_layer.models.output_models import (
 )
 from inference_layer.models.pipeline_version import PipelineVersion
 from inference_layer.models.llm_models import (
+    ChatMessage,
     LLMGenerationRequest,
     LLMGenerationResponse,
     LLMMetadata,
@@ -55,6 +56,7 @@ __all__ = [
     # Pipeline version
     "PipelineVersion",
     # LLM models
+    "ChatMessage",
     "LLMGenerationRequest",
     "LLMGenerationResponse",
     "LLMMetadata",

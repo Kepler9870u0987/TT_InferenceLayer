@@ -7,20 +7,42 @@ business models (EmailTriageResponse) to allow flexibility in the underlying
 LLM client implementation.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 from pydantic import BaseModel, Field, ConfigDict
+
+
+class ChatMessage(BaseModel):
+    """
+    Single message in a chat conversation.
+
+    Used by /api/chat endpoint to provide role-based message formatting.
+    Ollama applies the correct chat template (e.g. [INST]...[/INST] for Mistral,
+    <|im_start|> for Qwen) automatically when messages are sent this way.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    role: Literal["system", "user", "assistant"] = Field(
+        ..., description="Message role: system, user, or assistant"
+    )
+    content: str = Field(..., min_length=1, description="Message content text")
 
 
 class LLMGenerationRequest(BaseModel):
     """
     Internal request model for LLM generation.
-    
+
     This is the standardized format sent to any LLM client implementation
-    (Ollama, SGLang, etc.). It abstracts away provider-specific details.
+    (Ollama, SGLang, etc.). Uses chat-style messages[] for proper role
+    separation and automatic chat template application.
     """
     model_config = ConfigDict(frozen=True)
-    
-    prompt: str = Field(..., description="Complete prompt (system + user combined or formatted)")
+
+    messages: list[ChatMessage] = Field(
+        ...,
+        min_length=1,
+        description="Chat messages (system + user). Replaces single prompt field."
+    )
     model: str = Field(..., description="Model name/identifier (e.g., 'qwen2.5:7b')")
     temperature: float = Field(default=0.1, ge=0.0, le=2.0, description="Sampling temperature")
     max_tokens: int = Field(default=2048, ge=1, le=8192, description="Maximum tokens to generate")

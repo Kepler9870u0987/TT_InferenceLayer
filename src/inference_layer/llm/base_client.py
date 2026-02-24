@@ -71,16 +71,20 @@ class BaseLLMClient(ABC):
         """
         Generate completion from the LLM.
         
-        This is the core method that sends a request to the inference server
-        and returns the parsed response. Implementations should:
+        This is the core method that sends a chat-style request to the
+        inference server and returns the parsed response. The request
+        contains a messages[] array with system and user roles, which
+        allows the server to apply the correct chat template.
         
-        1. Format the request according to provider's API spec
-        2. Send HTTP request with timeout and retry on network errors
+        Implementations should:
+        
+        1. Convert request.messages to provider's chat API format
+        2. Send HTTP request (e.g. POST /api/chat) with timeout and retry
         3. Parse response and extract metadata (tokens, latency, etc.)
         4. Return LLMGenerationResponse or raise LLMClientError subclass
         
         Args:
-            request: Standardized generation request
+            request: Standardized generation request with messages[]
             
         Returns:
             LLMGenerationResponse with generated text and metadata

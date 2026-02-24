@@ -16,7 +16,7 @@ from jinja2 import Environment, FileSystemLoader, Template
 import structlog
 
 from inference_layer.models.input_models import TriageRequest, CandidateKeyword
-from inference_layer.models.llm_models import LLMGenerationRequest
+from inference_layer.models.llm_models import LLMGenerationRequest, ChatMessage
 from inference_layer.models.enums import TopicsEnum
 from inference_layer.llm.text_utils import truncate_at_sentence_boundary, adjust_pii_spans_after_truncation
 from inference_layer.pii.redactor import redact_pii_for_llm, redact_pii_in_candidates
@@ -248,9 +248,10 @@ class PromptBuilder:
         max_tokens: Optional[int] = None
     ) -> tuple[LLMGenerationRequest, dict]:
         """
-        Build complete LLMGenerationRequest.
+        Build complete LLMGenerationRequest with chat-style messages[].
         
-        Combines system + user prompts and includes JSON Schema.
+        Creates separate system and user messages for proper role-based
+        formatting. Ollama applies the correct chat template automatically.
         
         Args:
             request: TriageRequest
@@ -266,19 +267,20 @@ class PromptBuilder:
         system_prompt = self.build_system_prompt()
         user_prompt, user_metadata = self.build_user_prompt(request, shrink_mode=shrink_mode)
         
-        # Combine system + user (format depends on LLM, but default is concatenation)
-        # For Ollama, we typically just concatenate since there's one "prompt" field
-        # Some models use special tokens like <|system|>, <|user|> but that's model-specific
-        full_prompt = f"{system_prompt}\n\n{user_prompt}"
+        # Build chat messages (system + user as separate roles)
+        messages = [
+            ChatMessage(role="system", content=system_prompt),
+            ChatMessage(role="user", content=user_prompt),
+        ]
         
         # Override parameters if provided
         final_model = model or self.default_model
         final_temperature = temperature if temperature is not None else self.default_temperature
         final_max_tokens = max_tokens or self.default_max_tokens
         
-        # Build LLMGenerationRequest
+        # Build LLMGenerationRequest with messages[]
         llm_request = LLMGenerationRequest(
-            prompt=full_prompt,
+            messages=messages,
             model=final_model,
             temperature=final_temperature,
             max_tokens=final_max_tokens,
@@ -287,6 +289,7 @@ class PromptBuilder:
         )
         
         # Enhanced metadata
+        total_messages_length = sum(len(m.content) for m in messages)
         metadata = {
             **user_metadata,
             "model": final_model,
@@ -294,7 +297,7 @@ class PromptBuilder:
             "max_tokens": final_max_tokens,
             "system_prompt_length": len(system_prompt),
             "user_prompt_length": len(user_prompt),
-            "full_prompt_length": len(full_prompt),
+            "total_messages_length": total_messages_length,
             "schema_included": True
         }
         
@@ -303,7 +306,7 @@ class PromptBuilder:
             model=final_model,
             temperature=final_temperature,
             max_tokens=final_max_tokens,
-            full_prompt_length=len(full_prompt),
+            total_messages_length=total_messages_length,
             shrink_mode=shrink_mode
         )
         

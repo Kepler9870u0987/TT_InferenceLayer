@@ -34,11 +34,12 @@ class OllamaClient(BaseLLMClient):
     Ollama-specific LLM client using httpx for async HTTP communication.
     
     API Endpoints:
-    - POST /api/generate: Generate completion with optional format constraint
+    - POST /api/chat: Chat completion with role-based messages and format constraint
     - GET /api/tags: List available models
-    - GET /api/show: Get model details
+    - POST /api/show: Get model details
     
     Features:
+    - Chat-style messages[] for automatic chat template application
     - Structured output via format parameter (JSON Schema)
     - Connection pooling via persistent AsyncClient
     - Automatic retry on network errors with exponential backoff
@@ -99,12 +100,15 @@ class OllamaClient(BaseLLMClient):
     
     async def generate(self, request: LLMGenerationRequest) -> LLMGenerationResponse:
         """
-        Generate completion using Ollama API.
+        Generate completion using Ollama /api/chat endpoint.
         
-        POST /api/generate with payload:
+        POST /api/chat with payload:
         {
             "model": "qwen2.5:7b",
-            "prompt": "...",
+            "messages": [
+                {"role": "system", "content": "..."},
+                {"role": "user", "content": "..."}
+            ],
             "stream": false,
             "format": <JSON Schema or "json">,
             "options": {
@@ -119,7 +123,7 @@ class OllamaClient(BaseLLMClient):
         {
             "model": "qwen2.5:7b",
             "created_at": "2026-02-19T...",
-            "response": "...",
+            "message": {"role": "assistant", "content": "..."},
             "done": true,
             "total_duration": 5000000000,
             "eval_count": 150,
@@ -128,10 +132,13 @@ class OllamaClient(BaseLLMClient):
         """
         start_time = time.time()
         
-        # Build Ollama-specific payload
+        # Build Ollama chat payload with messages[]
         payload = {
             "model": request.model,
-            "prompt": request.prompt,
+            "messages": [
+                {"role": msg.role, "content": msg.content}
+                for msg in request.messages
+            ],
             "stream": request.stream,  # Always False for us
             "options": {
                 "temperature": request.temperature,
@@ -157,10 +164,12 @@ class OllamaClient(BaseLLMClient):
             payload["format"] = "json"
             logger.debug("Using basic JSON format")
         
+        total_messages_length = sum(len(msg.content) for msg in request.messages)
         logger.info(
-            "Sending generation request to Ollama",
+            "Sending chat request to Ollama",
             model=request.model,
-            prompt_length=len(request.prompt),
+            messages_count=len(request.messages),
+            total_messages_length=total_messages_length,
             temperature=request.temperature,
             max_tokens=request.max_tokens,
             has_schema=bool(request.format_schema)
@@ -172,7 +181,7 @@ class OllamaClient(BaseLLMClient):
             try:
                 client = await self._get_client()
                 response = await client.post(
-                    "/api/generate",
+                    "/api/chat",
                     json=payload,
                     timeout=self.timeout
                 )
@@ -182,8 +191,9 @@ class OllamaClient(BaseLLMClient):
                 response_data = response.json()
                 latency_ms = int((time.time() - start_time) * 1000)
                 
-                # Extract content
-                content = response_data.get("response", "")
+                # Extract content from chat response format
+                message = response_data.get("message", {})
+                content = message.get("content", "") if isinstance(message, dict) else ""
                 if not content:
                     raise LLMGenerationError(
                         "Empty response from Ollama",
