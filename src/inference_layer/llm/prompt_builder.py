@@ -46,7 +46,7 @@ class PromptBuilder:
         candidate_top_n: int = 100,
         shrink_top_n: int = 50,
         redact_for_llm: bool = False,
-        default_model: str = "qwen2.5:7b",
+        default_model: str = "gemma3:270m",
         default_temperature: float = 0.1,
         default_max_tokens: int = 2048,
     ):
