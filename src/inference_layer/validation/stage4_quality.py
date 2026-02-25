@@ -118,7 +118,7 @@ class Stage4QualityChecks:
         
         # Check duplicate keywords within each topic
         for topic_idx, topic in enumerate(response.topics):
-            candidateids = [kw.candidate_id for kw in topic.keywordsintext]
+            candidateids = [kw.candidateid for kw in topic.keywordsintext]
             seen_ids = set()
             for kw_idx, cid in enumerate(candidateids):
                 if cid in seen_ids:

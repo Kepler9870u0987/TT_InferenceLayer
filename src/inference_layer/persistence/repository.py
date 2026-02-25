@@ -35,14 +35,15 @@ class TriageRepository:
     
     # Redis key prefixes
     RESULT_PREFIX = "triage:result:"
+    RAW_PREFIX = "triage:raw:"
     TASK_PREFIX = "triage:task:"
     DLQ_KEY = "triage:dlq"
     RESULTS_INDEX = "triage:results:index"
-    
+
     def __init__(self, redis_client: Redis, settings: Settings):
         """
         Initialize repository.
-        
+
         Args:
             redis_client: Redis client instance
             settings: Application settings
@@ -50,6 +51,41 @@ class TriageRepository:
         self.redis = redis_client
         self.settings = settings
         self.result_ttl = settings.RESULT_TTL_SECONDS if hasattr(settings, 'RESULT_TTL_SECONDS') else 86400  # 24h default
+
+    def save_raw_llm_output(self, request_uid: str, raw_json: str) -> bool:
+        """
+        Persist the raw LLM JSON output before validation/normalisation.
+
+        Stored at ``triage:raw:{request_uid}`` with the same TTL as the
+        normalised result.  This enables post-mortem comparison of what the
+        LLM actually produced vs. the enriched output.
+
+        Args:
+            request_uid: Request UID (same as used in save_result).
+            raw_json: Raw JSON string from the LLM generation response.
+
+        Returns:
+            True if saved successfully.
+        """
+        try:
+            raw_key = f"{self.RAW_PREFIX}{request_uid}"
+            self.redis.setex(
+                name=raw_key,
+                time=self.result_ttl,
+                value=raw_json,
+            )
+            logger.debug(
+                "Saved raw LLM output",
+                extra={"request_uid": request_uid},
+            )
+            return True
+        except Exception as e:
+            logger.error(
+                "Failed to save raw LLM output",
+                extra={"request_uid": request_uid, "error": str(e)},
+                exc_info=True,
+            )
+            return False
     
     def save_result(self, result: TriageResult, task_id: Optional[str] = None) -> bool:
         """
@@ -351,14 +387,15 @@ class AsyncTriageRepository:
     """
     
     RESULT_PREFIX = "triage:result:"
+    RAW_PREFIX = "triage:raw:"
     TASK_PREFIX = "triage:task:"
     DLQ_KEY = "triage:dlq"
     RESULTS_INDEX = "triage:results:index"
-    
+
     def __init__(self, redis_client: AsyncRedis, settings: Settings):
         """
         Initialize async repository.
-        
+
         Args:
             redis_client: AsyncRedis client instance
             settings: Application settings
@@ -366,6 +403,36 @@ class AsyncTriageRepository:
         self.redis = redis_client
         self.settings = settings
         self.result_ttl = settings.RESULT_TTL_SECONDS if hasattr(settings, 'RESULT_TTL_SECONDS') else 86400
+
+    async def save_raw_llm_output(self, request_uid: str, raw_json: str) -> bool:
+        """Persist the raw LLM JSON output (async version).
+
+        Args:
+            request_uid: Request UID.
+            raw_json: Raw JSON string from the LLM generation response.
+
+        Returns:
+            True if saved successfully.
+        """
+        try:
+            raw_key = f"{self.RAW_PREFIX}{request_uid}"
+            await self.redis.setex(
+                name=raw_key,
+                time=self.result_ttl,
+                value=raw_json,
+            )
+            logger.debug(
+                "Saved raw LLM output (async)",
+                extra={"request_uid": request_uid},
+            )
+            return True
+        except Exception as e:
+            logger.error(
+                "Failed to save raw LLM output (async)",
+                extra={"request_uid": request_uid, "error": str(e)},
+                exc_info=True,
+            )
+            return False
     
     async def save_result(self, result: TriageResult, task_id: Optional[str] = None) -> bool:
         """Save triage result (async version)."""

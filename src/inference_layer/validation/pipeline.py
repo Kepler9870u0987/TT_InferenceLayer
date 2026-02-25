@@ -26,6 +26,8 @@ from .stage1_json_parse import Stage1JSONParse
 from .stage2_schema import Stage2SchemaValidation
 from .stage3_business_rules import Stage3BusinessRules
 from .stage4_quality import Stage4QualityChecks
+from .enrichment import enrich_response_keywords
+from .span_calculator import enrich_response_spans
 from .verifiers import (
     EvidencePresenceVerifier,
     KeywordPresenceVerifier,
@@ -142,7 +144,17 @@ class ValidationPipeline:
             # Stage 3: Business rules (hard fail)
             logger.debug("Stage 3: Validating business rules...")
             self.stage3.validate(response, request)
-            
+
+            # Enrichment: Back-fill optional KeywordInText fields from candidates
+            logger.debug("Enrichment: Back-filling keyword fields from candidates...")
+            response, enrichment_warnings = enrich_response_keywords(response, request)
+            warnings.extend(enrichment_warnings)
+
+            # Span calculation: Compute server-side evidence spans from quotes
+            logger.debug("Span calculation: Computing evidence spans server-side...")
+            response, span_warnings = enrich_response_spans(response, request)
+            warnings.extend(span_warnings)
+
             # Stage 4: Quality checks (warnings only)
             logger.debug("Stage 4: Running quality checks...")
             quality_warnings = self.stage4.validate(response)

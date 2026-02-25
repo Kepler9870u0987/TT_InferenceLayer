@@ -67,15 +67,15 @@ class Stage3BusinessRules:
         Raises:
             BusinessRuleViolation: If versions don't match
         """
-        if response.dictionary_version != request.dictionary_version:
+        if response.dictionaryversion != request.dictionary_version:
             validation_failures_total.labels(
                 stage="stage3", error_type="dictionary_version_mismatch"
             ).inc()
             raise BusinessRuleViolation(
-                f"Dictionary version mismatch: response has {response.dictionary_version}, "
+                f"Dictionary version mismatch: response has {response.dictionaryversion}, "
                 f"expected {request.dictionary_version}",
                 rule_name="dictionary_version_match",
-                invalid_value=response.dictionary_version,
+                invalid_value=response.dictionaryversion,
                 expected_values=[str(request.dictionary_version)],
                 field_path="dictionaryversion"
             )
@@ -128,15 +128,15 @@ class Stage3BusinessRules:
         # Check all keywords in all topics
         for topic_idx, topic in enumerate(response.topics):
             for kw_idx, keyword in enumerate(topic.keywordsintext):
-                if keyword.candidate_id not in valid_candidateids:
+                if keyword.candidateid not in valid_candidateids:
                     validation_failures_total.labels(
                         stage="stage3", error_type="invalid_candidateid"
                     ).inc()
                     raise BusinessRuleViolation(
-                        f"Keyword candidateid '{keyword.candidate_id}' not found in input candidates "
+                        f"Keyword candidateid '{keyword.candidateid}' not found in input candidates "
                         f"(LLM invented a keyword)",
                         rule_name="candidateid_exists_in_input",
-                        invalid_value=keyword.candidate_id,
+                        invalid_value=keyword.candidateid,
                         expected_values=None,  # Too many to list
                         field_path=f"topics[{topic_idx}].keywordsintext[{kw_idx}].candidateid"
                     )

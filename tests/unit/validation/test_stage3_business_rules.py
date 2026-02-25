@@ -137,7 +137,7 @@ class TestStage3BusinessRules:
                     labelid="CONTRATTO",
                     confidence=0.9,
                     keywordsintext=[
-                        KeywordInText(candidate_id="hash_001", lemma="contratto", count=1)
+                        KeywordInText(candidateid="hash_001", lemma="contratto", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test")]
                 )
@@ -162,7 +162,7 @@ class TestStage3BusinessRules:
                     labelid="INVENTED_TOPIC",  # Not in TopicsEnum!
                     confidence=0.9,
                     keywordsintext=[
-                        KeywordInText(candidate_id="hash_001", lemma="test", count=1)
+                        KeywordInText(candidateid="hash_001", lemma="test", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test")]
                 )
@@ -218,9 +218,9 @@ class TestStage3BusinessRules:
                     labelid="CONTRATTO",
                     confidence=0.9,
                     keywordsintext=[
-                        KeywordInText(candidate_id="hash_001", lemma="contratto", count=1),
-                        KeywordInText(candidate_id="hash_002", lemma="garanzia", count=1),
-                        KeywordInText(candidate_id="hash_INVALID", lemma="invalid", count=1),  # Invalid!
+                        KeywordInText(candidateid="hash_001", lemma="contratto", count=1),
+                        KeywordInText(candidateid="hash_002", lemma="garanzia", count=1),
+                        KeywordInText(candidateid="hash_INVALID", lemma="invalid", count=1),  # Invalid!
                     ],
                     evidence=[EvidenceItem(quote="test")]
                 )
@@ -244,7 +244,7 @@ class TestStage3BusinessRules:
                     labelid="CONTRATTO",
                     confidence=0.9,
                     keywordsintext=[
-                        KeywordInText(candidate_id="hash_001", lemma="contratto", count=1)
+                        KeywordInText(candidateid="hash_001", lemma="contratto", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test1")]
                 ),
@@ -252,7 +252,7 @@ class TestStage3BusinessRules:
                     labelid="INVALID_TOPIC",  # Invalid!
                     confidence=0.8,
                     keywordsintext=[
-                        KeywordInText(candidate_id="hash_002", lemma="garanzia", count=1)
+                        KeywordInText(candidateid="hash_002", lemma="garanzia", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test2")]
                 ),
@@ -276,7 +276,7 @@ class TestStage3BusinessRules:
                     labelid="CONTRATTO",
                     confidence=0.9,
                     keywordsintext=[
-                        KeywordInText(candidate_id="hash_001", lemma="contratto", count=1)
+                        KeywordInText(candidateid="hash_001", lemma="contratto", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test")]
                 )
@@ -300,7 +300,7 @@ class TestStage3BusinessRules:
                     labelid="CONTRATTO",
                     confidence=0.9,
                     keywordsintext=[
-                        KeywordInText(candidate_id="hash_001", lemma="contratto", count=1)
+                        KeywordInText(candidateid="hash_001", lemma="contratto", count=1)
                     ],
                     evidence=[EvidenceItem(quote="test")]
                 )
@@ -326,7 +326,7 @@ class TestStage3BusinessRules:
                         labelid=topic_enum.value,
                         confidence=0.9,
                         keywordsintext=[
-                            KeywordInText(candidate_id="hash_001", lemma="test", count=1)
+                            KeywordInText(candidateid="hash_001", lemma="test", count=1)
                         ],
                         evidence=[EvidenceItem(quote="test")]
                     )
@@ -346,7 +346,7 @@ class TestStage3BusinessRules:
                         labelid="CONTRATTO",
                         confidence=0.9,
                         keywordsintext=[
-                            KeywordInText(candidate_id="hash_001", lemma="test", count=1)
+                            KeywordInText(candidateid="hash_001", lemma="test", count=1)
                         ],
                         evidence=[EvidenceItem(quote="test")]
                     )
@@ -366,7 +366,7 @@ class TestStage3BusinessRules:
                         labelid="CONTRATTO",
                         confidence=0.9,
                         keywordsintext=[
-                            KeywordInText(candidate_id="hash_001", lemma="test", count=1)
+                            KeywordInText(candidateid="hash_001", lemma="test", count=1)
                         ],
                         evidence=[EvidenceItem(quote="test")]
                     )

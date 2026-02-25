@@ -93,7 +93,7 @@
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["candidateid", "lemma", "count"],
+              "required": ["candidateid"],
               "properties": {
                 "candidateid": {
                   "type": "string",

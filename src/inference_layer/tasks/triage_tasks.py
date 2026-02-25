@@ -141,6 +141,13 @@ def triage_email_task(self: TriageTask, request_dict: dict) -> dict:
         validated_response, retry_metadata, warnings = asyncio.run(
             self.retry_engine.execute_with_retry(request)
         )
+
+        # Persist raw validated response (before wrapping in TriageResult) for
+        # dual-payload audit trail (raw schema output vs full normalised result)
+        self.repository.save_raw_llm_output(
+            request.email.uid,
+            validated_response.model_dump_json(),
+        )
         
         # Build pipeline version
         pipeline_version = PipelineVersion(

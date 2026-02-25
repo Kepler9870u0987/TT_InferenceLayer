@@ -16,19 +16,44 @@ from inference_layer.models.pipeline_version import PipelineVersion
 class KeywordInText(BaseModel):
     """
     A keyword selected by the LLM from the candidate list, anchored to the text.
-    
+
     CRITICAL: candidateid MUST exist in the input candidate_keywords list.
     The LLM is NOT allowed to invent keywords.
+
+    lemma and count are optional: if omitted by the LLM they are back-filled
+    during the enrichment step (ValidationPipeline) from the CandidateKeyword
+    that matches candidateid.
     """
-    
+
     model_config = ConfigDict(extra="forbid")
-    
+
     candidateid: str = Field(
         ...,
         description="Candidate ID from input list - MUST NOT be invented"
     )
-    lemma: str = Field(..., description="Lemmatized form of the keyword")
-    count: int = Field(..., ge=1, description="Number of occurrences in the email")
+    lemma: Optional[str] = Field(
+        default=None,
+        description="Lemmatized form (optional - enriched from candidate if missing)"
+    )
+    count: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="Occurrences in email (optional - enriched from candidate if missing)"
+    )
+    # Enrichment fields – populated server-side from CandidateKeyword, never from LLM
+    term: Optional[str] = Field(
+        default=None,
+        description="Original n-gram term (server-side enrichment from candidate)"
+    )
+    source: Optional[str] = Field(
+        default=None,
+        description="Candidate source: 'subject' or 'body' (server-side enrichment)"
+    )
+    embeddingscore: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        description="KeyBERT similarity score (server-side enrichment)"
+    )
     spans: Optional[list[tuple[int, int]]] = Field(
         default=None,
         description="Optional: positions in text where keyword appears [(start, end), ...]"
@@ -38,20 +63,35 @@ class KeywordInText(BaseModel):
 class EvidenceItem(BaseModel):
     """
     A short quote from the email text supporting a topic classification.
-    
+
     The quote MUST be present in the canonical body text (verified by evidence_presence_check).
+    span_llm stores the original LLM-provided offset (if any) for audit purposes.
+    span is computed server-side from the quote; span_status records the match quality.
     """
-    
+
     model_config = ConfigDict(extra="forbid")
-    
+
     quote: str = Field(
         ...,
         max_length=200,
-        description="Short text excerpt supporting the topic (≤200 chars)"
+        description="Short text excerpt supporting the topic (\u2264200 chars)"
     )
     span: Optional[tuple[int, int]] = Field(
         default=None,
-        description="Optional: (start, end) position of quote in body_text_canonical"
+        description="Server-computed (start, end) position of quote in body_text_canonical"
+    )
+    # Span audit fields – populated server-side, never from LLM via the schema
+    span_llm: Optional[tuple[int, int]] = Field(
+        default=None,
+        description="Original span provided by LLM (audit / comparison only)"
+    )
+    span_status: Optional[str] = Field(
+        default=None,
+        description="Span computation result: 'exact_match' | 'fuzzy_match' | 'not_found'"
+    )
+    text_hash: Optional[str] = Field(
+        default=None,
+        description="SHA-256 of body_text_canonical used for span computation (audit)"
     )
 
 
