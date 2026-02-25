@@ -103,7 +103,7 @@ class TestValidationPipelineIntegration:
         
         # Should return EmailTriageResponse
         assert response is not None
-        assert response.dictionary_version == 1
+        assert response.dictionaryversion == 1
         assert response.sentiment.value == "neutral"
         assert response.priority.value == "medium"
         assert len(response.topics) == 2
@@ -242,7 +242,11 @@ class TestValidationPipelineIntegration:
         pipeline,
         sample_request
     ):
-        """Test that invalid topic label raises BusinessRuleViolation (Stage 3)."""
+        """Test that invalid topic label is rejected.
+        
+        The JSON Schema (Stage 2) validates the labelid enum, so invalid labels
+        raise SchemaValidationError before reaching Stage 3.
+        """
         invalid_response = LLMGenerationResponse(
             content=json.dumps({
                 "dictionaryversion": 1,
@@ -264,10 +268,10 @@ class TestValidationPipelineIntegration:
             latency_ms=100,
         )
         
-        with pytest.raises(BusinessRuleViolation) as exc_info:
+        with pytest.raises(SchemaValidationError) as exc_info:
             await pipeline.validate(invalid_response, sample_request)
         
-        assert "not in TopicsEnum" in str(exc_info.value)
+        assert "is not one of" in str(exc_info.value)
     
     @pytest.mark.asyncio
     async def test_low_confidence_produces_stage4_warning(
