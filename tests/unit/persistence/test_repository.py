@@ -211,7 +211,7 @@ def test_save_to_dlq_success(repository, mock_redis):
     dlq_entry = json.loads(dlq_json)
     assert dlq_entry["request_uid"] == "failed-uid-123"
     assert dlq_entry["total_attempts"] == 4
-    assert dlq_entry["last_error_type"] == "ValueError"
+    assert dlq_entry["last_error_type"] == "ValidationError"
 
 
 def test_get_dlq_entries(repository, mock_redis):

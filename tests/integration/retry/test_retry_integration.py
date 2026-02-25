@@ -121,7 +121,7 @@ def create_test_request(body: str = None, candidates_count: int = 20) -> TriageR
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_retry_engine_success_with_real_ollama():
+async def test_retry_engine_success_with_real_ollama(check_ollama):
     """
     Integration test: Full retry engine with real Ollama + validation.
     
@@ -148,12 +148,7 @@ async def test_retry_engine_success_with_real_ollama():
         shrink_top_n=settings.SHRINK_TOP_N,
     )
     
-    validation_pipeline = ValidationPipeline(
-        schema_path=settings.JSON_SCHEMA_PATH,
-        min_confidence_threshold=settings.MIN_CONFIDENCE_WARNING_THRESHOLD,
-        enable_evidence_check=settings.ENABLE_EVIDENCE_PRESENCE_CHECK,
-        enable_keyword_check=settings.ENABLE_KEYWORD_PRESENCE_CHECK,
-    )
+    validation_pipeline = ValidationPipeline(settings)
     
     retry_engine = RetryEngine(llm_client, prompt_builder, validation_pipeline, settings)
     
@@ -184,7 +179,7 @@ async def test_retry_engine_success_with_real_ollama():
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_retry_engine_shrink_mode_with_real_ollama():
+async def test_retry_engine_shrink_mode_with_real_ollama(check_ollama):
     """
     Integration test: Verify shrink mode reduces prompt size.
     
@@ -210,12 +205,7 @@ async def test_retry_engine_shrink_mode_with_real_ollama():
         shrink_top_n=settings.SHRINK_TOP_N,
     )
     
-    validation_pipeline = ValidationPipeline(
-        schema_path=settings.JSON_SCHEMA_PATH,
-        min_confidence_threshold=settings.MIN_CONFIDENCE_WARNING_THRESHOLD,
-        enable_evidence_check=settings.ENABLE_EVIDENCE_PRESENCE_CHECK,
-        enable_keyword_check=settings.ENABLE_KEYWORD_PRESENCE_CHECK,
-    )
+    validation_pipeline = ValidationPipeline(settings)
     
     retry_engine = RetryEngine(llm_client, prompt_builder, validation_pipeline, settings)
     
@@ -244,7 +234,7 @@ async def test_retry_engine_shrink_mode_with_real_ollama():
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_retry_engine_with_invalid_json_fixture():
+async def test_retry_engine_with_invalid_json_fixture(check_ollama):
     """
     Integration test: Use invalid JSON fixture to force retry.
     
@@ -270,12 +260,7 @@ async def test_retry_engine_with_invalid_json_fixture():
         shrink_top_n=settings.SHRINK_TOP_N,
     )
     
-    validation_pipeline = ValidationPipeline(
-        schema_path=settings.JSON_SCHEMA_PATH,
-        min_confidence_threshold=settings.MIN_CONFIDENCE_WARNING_THRESHOLD,
-        enable_evidence_check=settings.ENABLE_EVIDENCE_PRESENCE_CHECK,
-        enable_keyword_check=settings.ENABLE_KEYWORD_PRESENCE_CHECK,
-    )
+    validation_pipeline = ValidationPipeline(settings)
     
     retry_engine = RetryEngine(llm_client, prompt_builder, validation_pipeline, settings)
     
@@ -323,7 +308,7 @@ async def test_retry_engine_with_invalid_json_fixture():
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_retry_engine_all_strategies_exhausted():
+async def test_retry_engine_all_strategies_exhausted(check_ollama):
     """
     Integration test: Force all strategies to fail and verify RetryExhausted.
     
@@ -350,12 +335,7 @@ async def test_retry_engine_all_strategies_exhausted():
         shrink_top_n=settings.SHRINK_TOP_N,
     )
     
-    validation_pipeline = ValidationPipeline(
-        schema_path=settings.JSON_SCHEMA_PATH,
-        min_confidence_threshold=settings.MIN_CONFIDENCE_WARNING_THRESHOLD,
-        enable_evidence_check=settings.ENABLE_EVIDENCE_PRESENCE_CHECK,
-        enable_keyword_check=settings.ENABLE_KEYWORD_PRESENCE_CHECK,
-    )
+    validation_pipeline = ValidationPipeline(settings)
     
     retry_engine = RetryEngine(llm_client, prompt_builder, validation_pipeline, settings)
     
@@ -398,7 +378,7 @@ async def test_retry_engine_all_strategies_exhausted():
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_retry_engine_latency_tracking():
+async def test_retry_engine_latency_tracking(check_ollama):
     """Integration test: Verify latency tracking is accurate."""
     settings = Settings()
     
@@ -419,12 +399,7 @@ async def test_retry_engine_latency_tracking():
         shrink_top_n=settings.SHRINK_TOP_N,
     )
     
-    validation_pipeline = ValidationPipeline(
-        schema_path=settings.JSON_SCHEMA_PATH,
-        min_confidence_threshold=settings.MIN_CONFIDENCE_WARNING_THRESHOLD,
-        enable_evidence_check=settings.ENABLE_EVIDENCE_PRESENCE_CHECK,
-        enable_keyword_check=settings.ENABLE_KEYWORD_PRESENCE_CHECK,
-    )
+    validation_pipeline = ValidationPipeline(settings)
     
     retry_engine = RetryEngine(llm_client, prompt_builder, validation_pipeline, settings)
     

@@ -14,10 +14,8 @@ from inference_layer.models.input_models import (
     EmailDocument,
     CandidateKeyword,
     TriageRequest,
-    PiiEntity,
-    RemovedSection,
 )
-from inference_layer.models.llm_models import LLMGenerationResponse, LLMMetadata
+from inference_layer.models.llm_models import LLMGenerationResponse
 from inference_layer.validation import (
     ValidationPipeline,
     ValidationError,
@@ -46,35 +44,7 @@ class TestValidationPipelineIntegration:
         fixture_path = Path("tests/fixtures/sample_email.json")
         with open(fixture_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        
-        # Convert to EmailDocument
-        return EmailDocument(
-            subject=data["subject_canonical"],
-            from_address=data["from_addr_redacted"],
-            body_text_canonical=data["body_text_canonical"],
-            pii_entities=[
-                PiiEntity(
-                    type=pii["type"],
-                    original_hash=pii["original_hash"],
-                    redacted=pii["redacted"],
-                    span_start=pii["span_start"],
-                    span_end=pii["span_end"],
-                    confidence=pii["confidence"],
-                    detection_method=pii["detection_method"]
-                )
-                for pii in data.get("pii_entities", [])
-            ],
-            removed_sections=[
-                RemovedSection(
-                    type=sec["type"],
-                    span_start=sec["span_start"],
-                    span_end=sec["span_end"],
-                    content_preview=sec["content_preview"],
-                    confidence=sec["confidence"]
-                )
-                for sec in data.get("removed_sections", [])
-            ]
-        )
+        return EmailDocument(**data)
     
     @pytest.fixture
     def sample_candidates(self):
@@ -99,7 +69,7 @@ class TestValidationPipelineIntegration:
     def sample_request(self, sample_email_doc, sample_candidates):
         """Create sample TriageRequest."""
         return TriageRequest(
-            email_document=sample_email_doc,
+            email=sample_email_doc,
             candidate_keywords=sample_candidates,
             dictionary_version=1
         )
@@ -116,13 +86,9 @@ class TestValidationPipelineIntegration:
         """Create LLMGenerationResponse with valid content."""
         return LLMGenerationResponse(
             content=valid_llm_response_content,
-            metadata=LLMMetadata(
-                model="llama3.2:3b",
-                total_duration_ms=1234,
-                load_duration_ms=100,
-                eval_count=200,
-                prompt_eval_count=50
-            )
+            model_version="test_model:1.0",
+            finish_reason="stop",
+            latency_ms=1234,
         )
     
     @pytest.mark.asyncio
@@ -155,13 +121,9 @@ class TestValidationPipelineIntegration:
         """Test that malformed JSON raises JSONParseError (Stage 1)."""
         malformed_response = LLMGenerationResponse(
             content='{"dictionaryversion": 1, "topics": [',  # Incomplete JSON
-            metadata=LLMMetadata(
-                model="test",
-                total_duration_ms=100,
-                load_duration_ms=10,
-                eval_count=10,
-                prompt_eval_count=5
-            )
+            model_version="test_model:1.0",
+            finish_reason="stop",
+            latency_ms=100,
         )
         
         with pytest.raises(JSONParseError) as exc_info:
@@ -197,13 +159,9 @@ class TestValidationPipelineIntegration:
                     }
                 ]
             }),
-            metadata=LLMMetadata(
-                model="test",
-                total_duration_ms=100,
-                load_duration_ms=10,
-                eval_count=10,
-                prompt_eval_count=5
-            )
+            model_version="test_model:1.0",
+            finish_reason="stop",
+            latency_ms=100,
         )
         
         with pytest.raises(SchemaValidationError) as exc_info:
@@ -234,13 +192,9 @@ class TestValidationPipelineIntegration:
                     }
                 ]
             }),
-            metadata=LLMMetadata(
-                model="test",
-                total_duration_ms=100,
-                load_duration_ms=10,
-                eval_count=10,
-                prompt_eval_count=5
-            )
+            model_version="test_model:1.0",
+            finish_reason="stop",
+            latency_ms=100,
         )
         
         with pytest.raises(BusinessRuleViolation) as exc_info:
@@ -271,13 +225,9 @@ class TestValidationPipelineIntegration:
                     }
                 ]
             }),
-            metadata=LLMMetadata(
-                model="test",
-                total_duration_ms=100,
-                load_duration_ms=10,
-                eval_count=10,
-                prompt_eval_count=5
-            )
+            model_version="test_model:1.0",
+            finish_reason="stop",
+            latency_ms=100,
         )
         
         with pytest.raises(BusinessRuleViolation) as exc_info:
@@ -309,13 +259,9 @@ class TestValidationPipelineIntegration:
                     }
                 ]
             }),
-            metadata=LLMMetadata(
-                model="test",
-                total_duration_ms=100,
-                load_duration_ms=10,
-                eval_count=10,
-                prompt_eval_count=5
-            )
+            model_version="test_model:1.0",
+            finish_reason="stop",
+            latency_ms=100,
         )
         
         with pytest.raises(BusinessRuleViolation) as exc_info:
@@ -346,13 +292,9 @@ class TestValidationPipelineIntegration:
                     }
                 ]
             }),
-            metadata=LLMMetadata(
-                model="test",
-                total_duration_ms=100,
-                load_duration_ms=10,
-                eval_count=10,
-                prompt_eval_count=5
-            )
+            model_version="test_model:1.0",
+            finish_reason="stop",
+            latency_ms=100,
         )
         
         response, warnings = await pipeline.validate(low_confidence_response, sample_request)
@@ -387,13 +329,9 @@ class TestValidationPipelineIntegration:
                     }
                 ]
             }),
-            metadata=LLMMetadata(
-                model="test",
-                total_duration_ms=100,
-                load_duration_ms=10,
-                eval_count=10,
-                prompt_eval_count=5
-            )
+            model_version="test_model:1.0",
+            finish_reason="stop",
+            latency_ms=100,
         )
         
         response, warnings = await pipeline.validate(fabricated_evidence_response, sample_request)
@@ -471,13 +409,9 @@ class TestValidationPipelineIntegration:
                     }
                 ]
             }),
-            metadata=LLMMetadata(
-                model="test",
-                total_duration_ms=100,
-                load_duration_ms=10,
-                eval_count=10,
-                prompt_eval_count=5
-            )
+            model_version="test_model:1.0",
+            finish_reason="stop",
+            latency_ms=100,
         )
         
         response, warnings = await pipeline.validate(multi_issue_response, sample_request)

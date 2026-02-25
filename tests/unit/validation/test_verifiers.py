@@ -168,7 +168,7 @@ class TestEvidencePresenceVerifier:
                     evidence=[
                         EvidenceItem(
                             quote="informazioni sul contratto",
-                            span=[7, 32]  # text[7:32] == "informazioni sul contratto"
+                            span=[7, 33]  # text[7:33] == "informazioni sul contratto"
                         )
                     ]
                 )

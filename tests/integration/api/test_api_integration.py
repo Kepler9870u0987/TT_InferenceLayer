@@ -6,6 +6,7 @@ running services (mocked dependencies).
 """
 
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -138,8 +139,16 @@ def test_batch_endpoint_too_many_requests():
 
 def test_task_status_nonexistent_task():
     """Test task status endpoint with non-existent task ID."""
-    response = client.get("/triage/task/nonexistent_task_id")
-    
+    # Mock AsyncResult to avoid requiring a running Redis/Celery broker.
+    # "PENDING" with info=None is the standard Celery response for unknown tasks.
+    with patch("inference_layer.api.routes_async.AsyncResult") as mock_ar:
+        mock_result = MagicMock()
+        mock_result.state = "PENDING"
+        mock_result.info = None
+        mock_ar.return_value = mock_result
+
+        response = client.get("/triage/task/nonexistent_task_id")
+
     # Should return 404 (task not found)
     assert response.status_code == 404
     data = response.json()
@@ -148,8 +157,25 @@ def test_task_status_nonexistent_task():
 
 def test_task_result_nonexistent_task():
     """Test task result endpoint with non-existent task ID."""
-    response = client.get("/triage/result/nonexistent_task_id")
-    
+    from inference_layer.api.dependencies import get_async_repository
+
+    # Mock repository: task not in Redis fallback either
+    mock_repo = AsyncMock()
+    mock_repo.get_result_by_task_id.return_value = None
+    app.dependency_overrides[get_async_repository] = lambda: mock_repo
+
+    try:
+        # Mock AsyncResult: unknown task → PENDING with no info
+        with patch("inference_layer.api.routes_async.AsyncResult") as mock_ar:
+            mock_result = MagicMock()
+            mock_result.state = "PENDING"
+            mock_result.info = None
+            mock_ar.return_value = mock_result
+
+            response = client.get("/triage/result/nonexistent_task_id")
+    finally:
+        del app.dependency_overrides[get_async_repository]
+
     # Should return 404 (task not found)
     assert response.status_code == 404
     data = response.json()
