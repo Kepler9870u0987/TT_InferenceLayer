@@ -3,7 +3,7 @@ Unit tests for Redis client and connection pooling.
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from inference_layer.config import Settings
 from inference_layer.persistence.redis_client import RedisClient
@@ -81,7 +81,7 @@ def test_close_sync_pool():
 async def test_close_async_pool():
     """Test closing async connection pool."""
     mock_pool = MagicMock()
-    mock_pool.disconnect = MagicMock(return_value=None)
+    mock_pool.disconnect = AsyncMock()  # Must be awaitable
     RedisClient._async_pool = mock_pool
     
     await RedisClient.close_async_pool()

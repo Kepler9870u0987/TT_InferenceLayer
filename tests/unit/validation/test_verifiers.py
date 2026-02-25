@@ -168,7 +168,7 @@ class TestEvidencePresenceVerifier:
                     evidence=[
                         EvidenceItem(
                             quote="informazioni sul contratto",
-                            span=[7, 36]
+                            span=[7, 32]  # text[7:32] == "informazioni sul contratto"
                         )
                     ]
                 )
@@ -574,25 +574,25 @@ class TestSpansCoherenceVerifier:
     
     def test_span_invalid_format_warning(self):
         """Test that span with invalid format produces warning."""
-        response = EmailTriageResponse(
+        # Use model_construct to bypass Pydantic's tuple[int,int] constraint so we
+        # can verify the SpansCoherenceVerifier still catches malformed spans.
+        kw = KeywordInText.model_construct(
+            candidateid="h1",
+            lemma="test",
+            count=1,
+            spans=[[10, 20, 30]]  # 3-element span – invalid format
+        )
+        topic = TopicResult.model_construct(
+            labelid="CONTRATTO",
+            confidence=0.9,
+            keywordsintext=[kw],
+            evidence=[EvidenceItem(quote="test")]
+        )
+        response = EmailTriageResponse.model_construct(
             dictionaryversion=1,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
-            topics=[
-                TopicResult(
-                    labelid="CONTRATTO",
-                    confidence=0.9,
-                    keywordsintext=[
-                        KeywordInText(
-                            candidateid="h1",
-                            lemma="test",
-                            count=1,
-                            spans=[[10, 20, 30]]  # Should be [start, end] not [start, end, extra]
-                        )
-                    ],
-                    evidence=[EvidenceItem(quote="test")]
-                )
-            ]
+            topics=[topic]
         )
         
         warnings = self.verifier.verify(response, self.request)

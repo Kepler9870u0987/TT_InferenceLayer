@@ -39,16 +39,14 @@ def test_triage_response_model():
             ]
         },
         "pipeline_version": {
+            "dictionary_version": 1,
+            "model_version": "qwen2.5:7b",
+            "schema_version": "email_triage_v2",
+            "inference_layer_version": "0.1.0",
             "parser_version": "1.0",
             "canonicalization_version": "1.0",
             "ner_model_version": "1.0",
-            "pii_redaction_version": "1.0",
-            "dictionary_version": "1",
-            "schema_version": "2.0",
-            "model_name": "qwen2.5:7b",
-            "temperature": "0.1",
-            "top_n_candidates": "100",
-            "body_limit": "8000"
+            "pii_redaction_version": "1.0"
         },
         "request_uid": "test_uid",
         "validation_warnings": [],
@@ -118,16 +116,14 @@ def test_task_status_response_success():
             ]
         },
         "pipeline_version": {
+            "dictionary_version": 1,
+            "model_version": "qwen2.5:7b",
+            "schema_version": "email_triage_v2",
+            "inference_layer_version": "0.1.0",
             "parser_version": "1.0",
             "canonicalization_version": "1.0",
             "ner_model_version": "1.0",
-            "pii_redaction_version": "1.0",
-            "dictionary_version": "1",
-            "schema_version": "2.0",
-            "model_name": "qwen2.5:7b",
-            "temperature": "0.1",
-            "top_n_candidates": "100",
-            "body_limit": "8000"
+            "pii_redaction_version": "1.0"
         },
         "request_uid": "test_uid",
         "validation_warnings": [],

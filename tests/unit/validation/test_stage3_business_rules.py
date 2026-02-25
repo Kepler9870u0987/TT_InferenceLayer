@@ -111,7 +111,7 @@ class TestStage3BusinessRules:
                     confidence=0.9,
                     keywordsintext=[
                         KeywordInText(
-                            candidate_id="hash_001",
+                            candidateid="hash_001",
                             lemma="contratto",
                             count=2
                         )
@@ -153,20 +153,19 @@ class TestStage3BusinessRules:
     
     def test_invalid_topic_label_raises_error(self):
         """Test that invalid topic label (not in enum) raises BusinessRuleViolation."""
-        response = EmailTriageResponse(
+        # Use model_construct() to bypass Pydantic enum validation so Stage 3 is tested
+        # in isolation (Pydantic would otherwise catch the invalid label before Stage 3)
+        invalid_topic = TopicResult.model_construct(
+            labelid="INVENTED_TOPIC",  # Not in TopicsEnum!
+            confidence=0.9,
+            keywordsintext=[KeywordInText(candidateid="hash_001")],
+            evidence=[EvidenceItem(quote="test")]
+        )
+        response = EmailTriageResponse.model_construct(
             dictionaryversion=42,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
-            topics=[
-                TopicResult(
-                    labelid="INVENTED_TOPIC",  # Not in TopicsEnum!
-                    confidence=0.9,
-                    keywordsintext=[
-                        KeywordInText(candidateid="hash_001", lemma="test", count=1)
-                    ],
-                    evidence=[EvidenceItem(quote="test")]
-                )
-            ]
+            topics=[invalid_topic]
         )
         
         with pytest.raises(BusinessRuleViolation) as exc_info:
@@ -189,7 +188,7 @@ class TestStage3BusinessRules:
                     confidence=0.9,
                     keywordsintext=[
                         KeywordInText(
-                            candidate_id="hash_INVENTED",  # Not in input candidates!
+                            candidateid="hash_INVENTED",  # Not in input candidates!
                             lemma="invented",
                             count=1
                         )
@@ -235,28 +234,23 @@ class TestStage3BusinessRules:
     
     def test_multiple_topics_one_invalid_label_raises_error(self):
         """Test that one invalid topic label among many raises error."""
-        response = EmailTriageResponse(
+        valid_topic = TopicResult(
+            labelid="CONTRATTO",
+            confidence=0.9,
+            keywordsintext=[KeywordInText(candidateid="hash_001", lemma="contratto", count=1)],
+            evidence=[EvidenceItem(quote="test1")]
+        )
+        invalid_topic = TopicResult.model_construct(
+            labelid="INVALID_TOPIC",  # Invalid!
+            confidence=0.8,
+            keywordsintext=[KeywordInText(candidateid="hash_002", lemma="garanzia", count=1)],
+            evidence=[EvidenceItem(quote="test2")]
+        )
+        response = EmailTriageResponse.model_construct(
             dictionaryversion=42,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
-            topics=[
-                TopicResult(
-                    labelid="CONTRATTO",
-                    confidence=0.9,
-                    keywordsintext=[
-                        KeywordInText(candidateid="hash_001", lemma="contratto", count=1)
-                    ],
-                    evidence=[EvidenceItem(quote="test1")]
-                ),
-                TopicResult(
-                    labelid="INVALID_TOPIC",  # Invalid!
-                    confidence=0.8,
-                    keywordsintext=[
-                        KeywordInText(candidateid="hash_002", lemma="garanzia", count=1)
-                    ],
-                    evidence=[EvidenceItem(quote="test2")]
-                ),
-            ]
+            topics=[valid_topic, invalid_topic]
         )
         
         with pytest.raises(BusinessRuleViolation) as exc_info:
@@ -267,20 +261,17 @@ class TestStage3BusinessRules:
     
     def test_invalid_sentiment_value_raises_error(self):
         """Test that invalid sentiment value raises BusinessRuleViolation."""
-        response = EmailTriageResponse(
+        topic = TopicResult(
+            labelid="CONTRATTO",
+            confidence=0.9,
+            keywordsintext=[KeywordInText(candidateid="hash_001", lemma="contratto", count=1)],
+            evidence=[EvidenceItem(quote="test")]
+        )
+        response = EmailTriageResponse.model_construct(
             dictionaryversion=42,
-            sentiment=SentimentResult(value="INVALID_SENTIMENT", confidence=0.8),
+            sentiment=SentimentResult.model_construct(value="INVALID_SENTIMENT", confidence=0.8),
             priority=PriorityResult(value="medium", confidence=0.7, signals=[]),
-            topics=[
-                TopicResult(
-                    labelid="CONTRATTO",
-                    confidence=0.9,
-                    keywordsintext=[
-                        KeywordInText(candidateid="hash_001", lemma="contratto", count=1)
-                    ],
-                    evidence=[EvidenceItem(quote="test")]
-                )
-            ]
+            topics=[topic]
         )
         
         with pytest.raises(BusinessRuleViolation) as exc_info:
@@ -291,20 +282,17 @@ class TestStage3BusinessRules:
     
     def test_invalid_priority_value_raises_error(self):
         """Test that invalid priority value raises BusinessRuleViolation."""
-        response = EmailTriageResponse(
+        topic = TopicResult(
+            labelid="CONTRATTO",
+            confidence=0.9,
+            keywordsintext=[KeywordInText(candidateid="hash_001", lemma="contratto", count=1)],
+            evidence=[EvidenceItem(quote="test")]
+        )
+        response = EmailTriageResponse.model_construct(
             dictionaryversion=42,
             sentiment=SentimentResult(value="neutral", confidence=0.8),
-            priority=PriorityResult(value="INVALID_PRIORITY", confidence=0.7, signals=[]),
-            topics=[
-                TopicResult(
-                    labelid="CONTRATTO",
-                    confidence=0.9,
-                    keywordsintext=[
-                        KeywordInText(candidateid="hash_001", lemma="contratto", count=1)
-                    ],
-                    evidence=[EvidenceItem(quote="test")]
-                )
-            ]
+            priority=PriorityResult.model_construct(value="INVALID_PRIORITY", confidence=0.7, signals=[]),
+            topics=[topic]
         )
         
         with pytest.raises(BusinessRuleViolation) as exc_info:

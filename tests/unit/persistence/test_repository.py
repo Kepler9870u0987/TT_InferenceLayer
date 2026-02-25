@@ -47,10 +47,20 @@ def repository(mock_redis, mock_settings):
 @pytest.fixture
 def sample_result():
     """Sample TriageResult for testing."""
+    from inference_layer.models.output_models import (
+        TopicResult, KeywordInText, EvidenceItem,
+    )
     return TriageResult(
         triage_response=EmailTriageResponse(
             dictionaryversion=1,
-            topics=[],
+            topics=[
+                TopicResult(
+                    labelid="CONTRATTO",
+                    confidence=0.9,
+                    keywordsintext=[KeywordInText(candidateid="hash_001", lemma="contratto", count=1)],
+                    evidence=[EvidenceItem(quote="test quote")],
+                )
+            ],
             sentiment=SentimentResult(value=SentimentEnum.NEUTRAL, confidence=0.8),
             priority=PriorityResult(
                 value=PriorityEnum.MEDIUM,
@@ -172,7 +182,9 @@ def test_delete_result_not_found(repository, mock_redis):
 def test_save_to_dlq_success(repository, mock_redis):
     """Test saving failed request to DLQ."""
     # Create mock RetryExhausted exception
-    mock_request = MagicMock(spec=TriageRequest)
+    # Do NOT use spec=TriageRequest: Pydantic model fields are not class-level
+    # attributes accessible to MagicMock spec inspection.
+    mock_request = MagicMock()
     mock_request.email.uid = "failed-uid-123"
     mock_request.model_dump.return_value = {"email": {"uid": "failed-uid-123"}}
     

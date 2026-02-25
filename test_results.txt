@@ -1,0 +1,123 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.12, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\git\TT_InferenceLayer
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.3.0, cov-7.0.0, mock-3.15.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 182 items
+
+tests\unit\api\test_dependencies.py ......                               [  3%]
+tests\unit\api\test_models.py ........                                   [  7%]
+tests\unit\llm\test_prompt_builder.py .......                            [ 11%]
+tests\unit\llm\test_text_utils.py ..............                         [ 19%]
+tests\unit\persistence\test_redis_client.py ....                         [ 21%]
+tests\unit\persistence\test_repository.py ........F...                   [ 28%]
+tests\unit\pii\test_redactor.py .........                                [ 32%]
+tests\unit\retry\test_engine.py ............                             [ 39%]
+tests\unit\retry\test_strategies.py ...........                          [ 45%]
+tests\unit\validation\test_enrichment.py ..............                  [ 53%]
+tests\unit\validation\test_span_calculator.py ....................       [ 64%]
+tests\unit\validation\test_stage1_json_parse.py ...........              [ 70%]
+tests\unit\validation\test_stage2_schema.py ............                 [ 76%]
+tests\unit\validation\test_stage3_business_rules.py .........            [ 81%]
+tests\unit\validation\test_stage4_quality.py ...............             [ 90%]
+tests\unit\validation\test_verifiers.py ...F..............               [100%]
+
+================================== FAILURES ===================================
+__________________________ test_save_to_dlq_success ___________________________
+tests\unit\persistence\test_repository.py:214: in test_save_to_dlq_success
+    assert dlq_entry["last_error_type"] == "ValueError"
+E   AssertionError: assert 'ValidationError' == 'ValueError'
+E     
+E     - ValueError
+E     + ValidationError
+---------------------------- Captured stdout call -----------------------------
+2026-02-25 15:29:44 [error    ] Saved to DLQ                   extra={'request_uid': 'failed-uid-123', 'total_attempts': 4, 'last_error': 'Test error'}
+____ TestEvidencePresenceVerifier.test_evidence_with_valid_span_no_warning ____
+tests\unit\validation\test_verifiers.py:179: in test_evidence_with_valid_span_no_warning
+    assert warnings == []
+E   assert ['Evidence sp...nce index 0)'] == []
+E     
+E     Left contains one more item: "Evidence span [7:32] does not match quote in topic 'TopicsEnum.CONTRATTO' (topic index 0, evidence index 0)"
+E     Use -v to get more diff
+============================== warnings summary ===============================
+tests/unit/api/test_models.py::test_triage_response_model
+  C:\git\TT_InferenceLayer\tests\unit\api\test_models.py:55: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.utcnow().isoformat()
+
+tests/unit/api/test_models.py::test_batch_submit_response
+tests/unit/api/test_models.py::test_health_response
+tests/unit/api/test_models.py::test_error_response
+  C:\git\TT_InferenceLayer\.venv\Lib\site-packages\pydantic\main.py:250: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+
+tests/unit/api/test_models.py::test_task_status_response_success
+  C:\git\TT_InferenceLayer\tests\unit\api\test_models.py:132: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.utcnow().isoformat()
+
+tests/unit/persistence/test_repository.py::test_save_to_dlq_success
+  C:\git\TT_InferenceLayer\src\inference_layer\persistence\repository.py:257: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.utcnow().isoformat(),
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============================== tests coverage ================================
+______________ coverage: platform win32, python 3.13.12-final-0 _______________
+
+Name                                                      Stmts   Miss  Cover   Missing
+---------------------------------------------------------------------------------------
+src\inference_layer\__init__.py                               1      0   100%
+src\inference_layer\api\__init__.py                           4      0   100%
+src\inference_layer\api\dependencies.py                      31      4    87%   135-136, 153-154
+src\inference_layer\api\error_handlers.py                    39     19    51%   46-54, 80-110, 135-141, 164-169, 194-199, 223-228
+src\inference_layer\api\middleware.py                        25     25     0%   3-79
+src\inference_layer\api\models.py                            38      0   100%
+src\inference_layer\api\routes_async.py                      85     64    25%   66-111, 152-241, 280-334
+src\inference_layer\api\routes_sync.py                       96     66    31%   95-185, 216-270, 304-317, 347
+src\inference_layer\config.py                                50      0   100%
+src\inference_layer\llm\__init__.py                           6      0   100%
+src\inference_layer\llm\base_client.py                       18      4    78%   156-160, 169-170
+src\inference_layer\llm\exceptions.py                        17      3    82%   18-20
+src\inference_layer\llm\ollama_client.py                    152    125    18%   91-99, 133-356, 364-372, 391-415, 427-439, 446-448, 452, 456
+src\inference_layer\llm\prompt_builder.py                   102     10    90%   97-98, 110-112, 119-121, 174-175
+src\inference_layer\llm\sglang_client.py                     15      4    73%   56-57, 71-72
+src\inference_layer\llm\text_utils.py                        42      4    90%   103, 129-133
+src\inference_layer\logging_config.py                        32     32     0%   7-98
+src\inference_layer\main.py                                  50     50     0%   5-112
+src\inference_layer\models\__init__.py                        6      0   100%
+src\inference_layer\models\enums.py                          25      2    92%   58-59
+src\inference_layer\models\input_models.py                   60      0   100%
+src\inference_layer\models\llm_models.py                     38      0   100%
+src\inference_layer\models\output_models.py                  50      0   100%
+src\inference_layer\models\pipeline_version.py               20      3    85%   49, 64, 78
+src\inference_layer\monitoring\__init__.py                    2      0   100%
+src\inference_layer\monitoring\metrics.py                    17      0   100%
+src\inference_layer\persistence\__init__.py                   3      0   100%
+src\inference_layer\persistence\redis_client.py              38      2    95%   107, 120
+src\inference_layer\persistence\repository.py               185     84    55%   70-88, 173-179, 197-198, 203-209, 235-241, 288-294, 316-322, 348-354, 373-375, 403-405, 417-435, 439-477, 481-498, 502-517, 521-533
+src\inference_layer\pii\__init__.py                           2      0   100%
+src\inference_layer\pii\redactor.py                          56      0   100%
+src\inference_layer\retry\__init__.py                         5      0   100%
+src\inference_layer\retry\engine.py                          62      0   100%
+src\inference_layer\retry\exceptions.py                       7      0   100%
+src\inference_layer\retry\metadata.py                        19      4    79%   44, 47, 50, 55
+src\inference_layer\retry\strategies.py                      74      7    91%   79, 209-214, 316-321
+src\inference_layer\tasks\__init__.py                         3      0   100%
+src\inference_layer\tasks\celery_app.py                       5      0   100%
+src\inference_layer\tasks\triage_tasks.py                    81     42    48%   49-55, 60-72, 77-79, 84-91, 96-99, 125-222, 239-255
+src\inference_layer\validation\__init__.py                    3      0   100%
+src\inference_layer\validation\enrichment.py                 32      0   100%
+src\inference_layer\validation\exceptions.py                 38      0   100%
+src\inference_layer\validation\pipeline.py                   74     38    49%   112-186
+src\inference_layer\validation\span_calculator.py            72      1    99%   205
+src\inference_layer\validation\stage1_json_parse.py          25      3    88%   75-80
+src\inference_layer\validation\stage2_schema.py              46      5    89%   50, 69, 74-78
+src\inference_layer\validation\stage3_business_rules.py      40      0   100%
+src\inference_layer\validation\stage4_quality.py             64      0   100%
+src\inference_layer\validation\verifiers.py                 101      7    93%   68, 96, 128-129, 176-180, 276
+---------------------------------------------------------------------------------------
+TOTAL                                                      2056    608    70%
+Coverage HTML written to dir htmlcov
+=========================== short test summary info ===========================
+FAILED tests/unit/persistence/test_repository.py::test_save_to_dlq_success - ...
+FAILED tests/unit/validation/test_verifiers.py::TestEvidencePresenceVerifier::test_evidence_with_valid_span_no_warning
+================= 2 failed, 180 passed, 6 warnings in 19.57s ==================

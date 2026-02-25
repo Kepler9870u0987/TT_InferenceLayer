@@ -50,7 +50,7 @@ class TestRedactPiiForLlm:
             ),
             PiiEntity(
                 type="PHONE_IT", original_hash="ghi", redacted="339-1234567",
-                span_start=44, span_end=56, confidence=0.90, detection_method="regex"
+                span_start=44, span_end=55, confidence=0.90, detection_method="regex"
             ),
         ]
         result = redact_pii_for_llm(text, entities, redact_enabled=True)

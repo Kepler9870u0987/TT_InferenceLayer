@@ -268,9 +268,8 @@ class SpansCoherenceVerifier:
         Returns:
             Warning message if span is invalid, None otherwise
         """
-        if not isinstance(span, list) or len(span) != 2:
-            return f"Invalid span format for {context}: {span} (expected [start, end])"
-        
+        if not isinstance(span, (list, tuple)) or len(span) != 2:
+            return f"Invalid span format for {context}: {span} (expected [start, end])"        
         start, end = span
         
         if not isinstance(start, int) or not isinstance(end, int):

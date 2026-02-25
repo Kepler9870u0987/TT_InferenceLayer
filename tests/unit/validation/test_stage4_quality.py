@@ -25,7 +25,7 @@ class TestStage4QualityChecks:
     def create_minimal_valid_response(self, **overrides):
         """Helper to create minimal valid response with overrides."""
         defaults = {
-            "dictionary_version": 1,
+            "dictionaryversion": 1,
             "sentiment": SentimentResult(value="neutral", confidence=0.8),
             "priority": PriorityResult(value="medium", confidence=0.7, signals=["test"]),
             "topics": [
@@ -87,7 +87,7 @@ class TestStage4QualityChecks:
         warnings = self.stage4.validate(response)
         
         assert len(warnings) >= 1
-        assert any("topic" in w.lower() and "contratto" in w.upper() for w in warnings)
+        assert any("topic" in w.lower() and "CONTRATTO" in w.upper() for w in warnings)
         assert any("0.050" in w for w in warnings)
     
     def test_duplicate_topics_warning(self):
@@ -115,7 +115,7 @@ class TestStage4QualityChecks:
         warnings = self.stage4.validate(response)
         
         assert len(warnings) >= 1
-        assert any("duplicate topic" in w.lower() and "contratto" in w.upper() for w in warnings)
+        assert any("duplicate topic" in w.lower() and "CONTRATTO" in w.upper() for w in warnings)
     
     def test_duplicate_keywords_within_topic_warning(self):
         """Test that duplicate keywords within topic produce warning."""
@@ -184,37 +184,42 @@ class TestStage4QualityChecks:
     
     def test_topic_without_keywords_warning(self):
         """Test that topic without keywords produces warning."""
-        response = self.create_minimal_valid_response(
-            topics=[
-                TopicResult(
-                    labelid="CONTRATTO",
-                    confidence=0.9,
-                    keywordsintext=[],  # No keywords!
-                    evidence=[EvidenceItem(quote="test")]
-                )
-            ]
+        # Use model_construct to bypass Pydantic min_length=1 constraint
+        # (the Stage4 quality check is defensive code for belt-and-suspenders)
+        topic = TopicResult.model_construct(
+            labelid="CONTRATTO",
+            confidence=0.9,
+            keywordsintext=[],
+            evidence=[EvidenceItem(quote="test")]
+        )
+        response = EmailTriageResponse.model_construct(
+            dictionaryversion=1,
+            sentiment=self.create_minimal_valid_response().sentiment,
+            priority=self.create_minimal_valid_response().priority,
+            topics=[topic]
         )
         warnings = self.stage4.validate(response)
-        
+
         assert len(warnings) >= 1
         assert any("no keywords" in w.lower() for w in warnings)
     
     def test_topic_without_evidence_warning(self):
         """Test that topic without evidence produces warning."""
-        response = self.create_minimal_valid_response(
-            topics=[
-                TopicResult(
-                    labelid="CONTRATTO",
-                    confidence=0.9,
-                    keywordsintext=[
-                        KeywordInText(candidateid="h1", lemma="test", count=1)
-                    ],
-                    evidence=[]  # No evidence!
-                )
-            ]
+        # Use model_construct to bypass Pydantic min_length=1 constraint
+        topic = TopicResult.model_construct(
+            labelid="CONTRATTO",
+            confidence=0.9,
+            keywordsintext=[KeywordInText(candidateid="h1", lemma="test", count=1)],
+            evidence=[]
+        )
+        response = EmailTriageResponse.model_construct(
+            dictionaryversion=1,
+            sentiment=self.create_minimal_valid_response().sentiment,
+            priority=self.create_minimal_valid_response().priority,
+            topics=[topic]
         )
         warnings = self.stage4.validate(response)
-        
+
         assert len(warnings) >= 1
         assert any("no evidence" in w.lower() for w in warnings)
     
@@ -251,20 +256,22 @@ class TestStage4QualityChecks:
     
     def test_multiple_quality_issues_multiple_warnings(self):
         """Test that multiple quality issues produce multiple warnings."""
-        response = self.create_minimal_valid_response(
-            sentiment=SentimentResult(value="neutral", confidence=0.1),  # Low confidence
-            priority=PriorityResult(value="medium", confidence=0.7, signals=[]),  # No signals
-            topics=[
-                TopicResult(
-                    labelid="CONTRATTO",
-                    confidence=0.05,  # Low confidence
-                    keywordsintext=[],  # No keywords
-                    evidence=[]  # No evidence
-                )
-            ]
+        # Use model_construct for the topic to bypass Pydantic min_length=1
+        topic = TopicResult.model_construct(
+            labelid="CONTRATTO",
+            confidence=0.05,  # Low confidence
+            keywordsintext=[],  # No keywords
+            evidence=[]  # No evidence
+        )
+        valid = self.create_minimal_valid_response()
+        response = EmailTriageResponse.model_construct(
+            dictionaryversion=1,
+            sentiment=type(valid.sentiment)(value="neutral", confidence=0.1),  # Low confidence
+            priority=type(valid.priority)(value="medium", confidence=0.7, signals=[]),  # No signals
+            topics=[topic]
         )
         warnings = self.stage4.validate(response)
-        
+
         # Should have multiple warnings
         assert len(warnings) >= 4
         assert any("sentiment" in w.lower() for w in warnings)
